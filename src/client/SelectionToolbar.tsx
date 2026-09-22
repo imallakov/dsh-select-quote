@@ -19,6 +19,7 @@ import {
   type SelectionSnapshot,
 } from './dom/selection.ts'
 import { focusComposer } from './dom/composer-host.ts'
+import { placePopover } from './dom/popoverPlacement.ts'
 import { setRuntimeSession } from './runtime.ts'
 import { getAnnotations, saveAnnotation } from './state/annotation-store.ts'
 import { ensureToolbarStyles, styles } from './styles.ts'
@@ -117,9 +118,27 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
     }
   }, [hide, refresh])
 
+  // Flip the comment popover when the preferred side lacks room.
+  const placeCommentPop = useCallback(() => {
+    const toolbar = toolbarRef.current
+    const pop = commentWrapRef.current
+    if (!toolbar || !pop) return
+    const anchor = toolbar.getBoundingClientRect()
+    pop.style.display = 'flex'
+    pop.style.visibility = 'hidden'
+    const panel = { width: pop.offsetWidth || 320, height: pop.offsetHeight || 180 }
+    pop.style.visibility = ''
+    const { top, left } = placePopover(anchor, panel, 'bottom')
+    pop.style.top = `${top}px`
+    pop.style.left = `${left}px`
+  }, [])
+
   useEffect(() => {
-    if (phase === 'comment') commentRef.current?.focus()
-  }, [phase])
+    if (phase === 'comment') {
+      placeCommentPop()
+      commentRef.current?.focus()
+    }
+  }, [phase, placeCommentPop])
 
   const handleToolbarPointerDown = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     event.preventDefault()
@@ -215,10 +234,7 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
           ? jsxs('div', {
               ref: commentWrapRef,
               className: styles.commentPop,
-              style: {
-                left: active.left,
-                top: active.top + 40,
-              },
+              style: undefined,
               role: 'dialog',
               'aria-label': '添加可选评论',
               onPointerDown: handleToolbarPointerDown,

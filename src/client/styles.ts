@@ -244,6 +244,7 @@ const CSS = `
   user-select: none;
 }
 
+/* Keep hover alive across the gap: the panel uses padding as a bridge. */
 .dsq_summary:hover .dsq_summaryHover,
 .dsq_summary:focus-within .dsq_summaryHover {
   display: flex;
@@ -284,12 +285,25 @@ const CSS = `
 .dsq_summaryHover {
   display: none;
   position: absolute;
-  top: calc(100% + 8px);
+  top: 100%;
   left: 0;
   right: 0;
   z-index: 10050;
   min-width: 240px;
   max-width: 320px;
+  flex-direction: column;
+  gap: 8px;
+  /* padding-top is a hover bridge so the pointer can enter the panel */
+  padding: 12px 12px 12px;
+  padding-top: 20px;
+  margin-top: -12px;
+  border-radius: 14px;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.dsq_summaryHoverInner {
+  display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 12px;
@@ -299,12 +313,40 @@ const CSS = `
   box-shadow: var(--dsw-elevation-soft, 0 6px 20px rgba(0, 0, 0, 0.08));
 }
 
+.dsq_summaryItemButton {
+  appearance: none;
+  text-align: left;
+  font: inherit;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 10px;
+  padding: 6px 8px;
+  margin: 0 -8px;
+}
+
+.dsq_summaryItemButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.05));
+}
+
+.dsq_annAnchor {
+  display: block;
+  width: 100%;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .dsq_summaryItem {
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding-bottom: 8px;
   border-bottom: 0.5px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.08));
+}
+
+.dsq_summaryItem:last-child {
+  border-bottom: none;
 }
 
 .dsq_summaryItem:last-child {
@@ -546,6 +588,9 @@ export const styles = {
   summaryItem: 'dsq_summaryItem',
   summaryItemLabel: 'dsq_summaryItemLabel',
   summaryItemText: 'dsq_summaryItemText',
+  summaryHoverInner: 'dsq_summaryHoverInner',
+  summaryItemButton: 'dsq_summaryItemButton',
+  annAnchor: 'dsq_annAnchor',
   commentPop: 'dsq_commentPop',
   commentInput: 'dsq_commentInput',
   commentActions: 'dsq_commentActions',

@@ -1,23 +1,18 @@
-import type { ReactNode } from 'react'
+import { useCallback, useRef, type ReactNode } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
+import { placePopover } from '../dom/popoverPlacement.ts'
 import { styles } from '../styles.ts'
 
 export interface AnnotationCardViewProps {
   readonly title: string
-  /** Full selected text (tooltip / hover body). */
   readonly text: string
   readonly comment?: string
   readonly variant: 'composer' | 'transcript'
-  /** Optional index label (1-based), Qoder style. */
   readonly index?: number
   readonly onRemove?: () => void
   readonly onEditComment?: () => void
 }
 
-/**
- * Shared selection-annotation chrome: icon + title + “选中的文本”/评论摘要
- * (+ composer remove / edit).
- */
 export function AnnotationCardView({
   title,
   text,
@@ -75,25 +70,67 @@ export function AnnotationCardView({
   })
 }
 
+export interface AnnotationSummaryItem {
+  readonly title: string
+  readonly text: string
+  readonly comment?: string
+}
+
 export interface AnnotationSummaryProps {
   readonly count: number
-  readonly items: readonly { title: string; text: string; comment?: string }[]
+  readonly items: readonly AnnotationSummaryItem[]
   readonly onRemoveAll?: () => void
+  readonly onItemSelect?: (index: number, item: AnnotationSummaryItem) => void
   readonly hint?: string
 }
 
-/** Qoder-style composer summary: “N 条批注 · 悬停查看批注”. */
+/** Qoder-style summary with a placement-aware hover list. */
 export function AnnotationSummary({
   count,
   items,
   onRemoveAll,
+  onItemSelect,
   hint = '悬停查看批注',
 }: AnnotationSummaryProps): ReactNode {
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const popRef = useRef<HTMLDivElement | null>(null)
+
+  const place = useCallback(() => {
+    const root = rootRef.current
+    const pop = popRef.current
+    if (!root || !pop) return
+    const anchor = root.getBoundingClientRect()
+    // Measure with the class toggled open so layout is real.
+    pop.style.display = 'flex'
+    pop.style.visibility = 'hidden'
+    const panel = {
+      width: pop.offsetWidth || 280,
+      height: pop.offsetHeight || 220,
+    }
+    pop.style.visibility = ''
+    const { top, left, side } = placePopover(anchor, panel, 'bottom')
+    // Position relative to the summary root (which is position: relative).
+    const originTop = anchor.top + (root.offsetParent ? root.offsetTop : 0)
+    // Prefer viewport-fixed coordinates converted to offset-parent space.
+    pop.style.position = 'fixed'
+    pop.style.top = `${top}px`
+    pop.style.left = `${left}px`
+    pop.style.right = 'auto'
+    pop.dataset.side = side
+  }, [])
+
+  const openPop = useCallback(() => {
+    place()
+  }, [place])
+
   return jsxs('div', {
+    ref: rootRef,
     className: styles.summary,
     tabIndex: 0,
     'data-selection-annotation-summary': 'true',
     'aria-label': `${count} 条划词批注。悬停查看详情。`,
+    onPointerEnter: openPop,
+    onFocus: openPop,
     children: [
       jsx('div', {
         className: styles.summaryIcon,
@@ -112,34 +149,48 @@ export function AnnotationSummary({
             children: hint,
           }),
           jsx('div', {
+            ref: popRef,
             className: styles.summaryHover,
-            children: items.map((item, i) =>
-              jsxs(
-                'div',
-                {
-                  className: styles.summaryItem,
-                  children: [
-                    jsx('div', {
-                      className: styles.summaryItemLabel,
-                      children: `${i + 1}. 选中文字`,
-                    }),
-                    jsx('div', {
-                      className: styles.summaryItemText,
-                      children: item.title,
-                    }),
-                    jsx('div', {
-                      className: styles.summaryItemLabel,
-                      children: '用户评论',
-                    }),
-                    jsx('div', {
-                      className: styles.summaryItemText,
-                      children: item.comment || '未添加评论',
-                    }),
-                  ],
-                },
-                `${i}`,
+            children: jsx('div', {
+              className: styles.summaryHoverInner,
+              children: items.map((item, i) =>
+                jsxs(
+                  'button',
+                  {
+                    type: 'button',
+                    className: styles.summaryItemButton,
+                    onClick: (e: { stopPropagation: () => void }) => {
+                      e.stopPropagation()
+                      onItemSelect?.(i, item)
+                    },
+                    children: [
+                      jsxs('div', {
+                        className: styles.summaryItem,
+                        children: [
+                          jsx('div', {
+                            className: styles.summaryItemLabel,
+                            children: `${i + 1}. 选中文字`,
+                          }),
+                          jsx('div', {
+                            className: styles.summaryItemText,
+                            children: item.title,
+                          }),
+                          jsx('div', {
+                            className: styles.summaryItemLabel,
+                            children: '用户评论',
+                          }),
+                          jsx('div', {
+                            className: styles.summaryItemText,
+                            children: item.comment || '未添加评论',
+                          }),
+                        ],
+                      }),
+                    ],
+                  },
+                  `${i}`,
+                ),
               ),
-            ),
+            }),
           }),
         ],
       }),

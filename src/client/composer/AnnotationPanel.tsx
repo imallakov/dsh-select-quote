@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { jsx } from 'react/jsx-runtime'
 import { composerCardOf } from '../dom/composer-host.ts'
+import { scrollToAnnotation } from '../dom/scrollToAnnotation.ts'
 import { setRuntimeSession } from '../runtime.ts'
 import {
   annotationTitle,
@@ -10,7 +11,7 @@ import {
   type SelectionAnnotation,
 } from '../state/annotation-store.ts'
 import { ensureToolbarStyles, styles } from '../styles.ts'
-import { AnnotationSummary } from '../ui/AnnotationCardView.tsx'
+import { AnnotationSummary, type AnnotationSummaryItem } from '../ui/AnnotationCardView.tsx'
 import { clearDraftMarker, useDraftMarker } from './useDraftMarker.ts'
 import { useSendIntercept } from './useSendIntercept.ts'
 
@@ -102,6 +103,10 @@ export function AnnotationPanel({
 
   if (!sessionId || items.length === 0) return null
 
+  const onItemSelect = useCallback((index: number, item: AnnotationSummaryItem) => {
+    scrollToAnnotation(index, item.text)
+  }, [])
+
   return jsx('div', {
     ref: stackRef,
     className: styles.cardStack,
@@ -113,6 +118,7 @@ export function AnnotationPanel({
         comment: item.comment,
       })),
       onRemoveAll,
+      onItemSelect,
     }),
   })
 }
