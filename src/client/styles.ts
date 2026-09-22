@@ -373,9 +373,14 @@ const CSS = `
 .dsq_tCardStack {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: stretch;
   gap: 6px;
   margin: 4px 0 8px;
+  /* Match the composer summary width (~1/5 of the column). */
+  width: 20%;
+  min-width: 148px;
+  max-width: 220px;
+  margin-left: 0;
 }
 
 .dsq_tCard {
