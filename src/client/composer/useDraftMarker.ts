@@ -3,7 +3,6 @@ import { DRAFT_MARKER, stripDraftMarker, withDraftMarker } from '../protocol/quo
 
 export interface DraftMarkerDeps {
   readonly itemCount: number
-  readonly sessionId: string | undefined
   readonly draftRef: MutableRefObject<string>
   readonly setDraft: (text: string) => void
 }
@@ -17,17 +16,16 @@ export interface DraftMarkerDeps {
  */
 export function useDraftMarker({
   itemCount,
-  sessionId,
   draftRef,
   setDraft,
 }: DraftMarkerDeps): void {
   useEffect(() => {
-    if (itemCount === 0 || !sessionId) return
+    if (itemCount === 0) return
     const current = draftRef.current
     if (current.includes(DRAFT_MARKER)) return
     if (current.trim() !== '') return
     setDraft(withDraftMarker(current))
-  }, [itemCount, sessionId, draftRef, setDraft])
+  }, [itemCount, draftRef, setDraft])
 }
 
 export function clearDraftMarker(draft: string, setDraft: (text: string) => void): void {

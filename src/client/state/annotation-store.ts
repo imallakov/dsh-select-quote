@@ -5,6 +5,7 @@ import {
   type AnnotationSource,
   type SelectionAnnotation,
 } from '../protocol/annotation-protocol.ts'
+import { annotationStoreKey } from '../runtime.ts'
 
 export type { SelectionAnnotation, AnnotationSource }
 
@@ -30,10 +31,18 @@ export interface SaveAnnotationInput {
   readonly sources?: readonly AnnotationSource[]
 }
 
+function key(sessionId?: string): string {
+  return sessionId ?? annotationStoreKey()
+}
+
 /** Append one selection; an identical text+comment pair is reused. */
-export function saveAnnotation(sessionId: string, input: SaveAnnotationInput): SelectionAnnotation {
+export function saveAnnotation(
+  sessionId: string | undefined,
+  input: SaveAnnotationInput,
+): SelectionAnnotation {
+  const k = key(sessionId)
   const comment = input.comment?.trim() ?? ''
-  const current = bySession.get(sessionId) ?? EMPTY
+  const current = bySession.get(k) ?? EMPTY
   const duplicate = current.find(
     (item) => item.text === input.text && (item.comment ?? '') === comment,
   )
@@ -43,49 +52,47 @@ export function saveAnnotation(sessionId: string, input: SaveAnnotationInput): S
     id: `ann_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
     text: input.text,
     ...(comment ? { comment } : {}),
-    sources: input.sources?.length
-      ? input.sources
-      : [{ text: input.text }],
+    sources: input.sources?.length ? input.sources : [{ text: input.text }],
   }
-  bySession.set(sessionId, [...current, annotation])
+  bySession.set(k, [...current, annotation])
   notify()
   return annotation
 }
 
-export function getAnnotations(sessionId: string): readonly SelectionAnnotation[] {
-  return bySession.get(sessionId) ?? EMPTY
+export function getAnnotations(sessionId?: string): readonly SelectionAnnotation[] {
+  return bySession.get(key(sessionId)) ?? EMPTY
 }
 
 export function updateAnnotationComment(
-  sessionId: string,
+  sessionId: string | undefined,
   id: string,
   comment: string,
 ): void {
-  const current = bySession.get(sessionId)
+  const k = key(sessionId)
+  const current = bySession.get(k)
   if (!current) return
   const next = current.map((item) => {
     if (item.id !== id) return item
     const trimmed = comment.trim()
-    return trimmed
-      ? { ...item, comment: trimmed }
-      : { ...item, comment: undefined }
+    return trimmed ? { ...item, comment: trimmed } : { ...item, comment: undefined }
   })
-  bySession.set(sessionId, next)
+  bySession.set(k, next)
   notify()
 }
 
-export function removeAnnotation(sessionId: string, id: string): void {
-  const current = bySession.get(sessionId)
+export function removeAnnotation(sessionId: string | undefined, id: string): void {
+  const k = key(sessionId)
+  const current = bySession.get(k)
   if (!current) return
   const next = current.filter((item) => item.id !== id)
   if (next.length === current.length) return
-  if (next.length === 0) bySession.delete(sessionId)
-  else bySession.set(sessionId, next)
+  if (next.length === 0) bySession.delete(k)
+  else bySession.set(k, next)
   notify()
 }
 
-export function clearAnnotations(sessionId: string): void {
-  if (bySession.delete(sessionId)) notify()
+export function clearAnnotations(sessionId?: string): void {
+  if (bySession.delete(key(sessionId))) notify()
 }
 
 export function annotationTitle(annotation: SelectionAnnotation): string {

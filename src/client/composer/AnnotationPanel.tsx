@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { jsx } from 'react/jsx-runtime'
 import { composerCardOf } from '../dom/composer-host.ts'
-import { resolveSessionId, setRuntimeSession } from '../runtime.ts'
+import { setRuntimeSession } from '../runtime.ts'
 import {
   annotationTitle,
   clearAnnotations,
@@ -51,8 +51,7 @@ export function AnnotationPanel({
   }, [])
 
   const sync = useCallback(() => {
-    const id = resolveSessionId(sessionRef.current)
-    setItems(id ? getAnnotations(id) : EMPTY)
+    setItems(getAnnotations())
   }, [])
 
   useEffect(() => {
@@ -84,10 +83,9 @@ export function AnnotationPanel({
     }
   }, [items])
 
-  useDraftMarker({ itemCount: items.length, sessionId, draftRef, setDraft })
+  useDraftMarker({ itemCount: items.length, draftRef, setDraft })
   useSendIntercept({
     itemCount: items.length,
-    sessionId,
     draftRef,
     setDraft,
     onFolded: () => setItems(EMPTY),
@@ -96,7 +94,7 @@ export function AnnotationPanel({
   const onRemoveAll = useCallback(() => {
     const active = sessionRef.current
     if (!active) return
-    clearAnnotations(active)
+    clearAnnotations()
     setItems(EMPTY)
     clearDraftMarker(draftRef.current, setDraft)
   }, [setDraft])

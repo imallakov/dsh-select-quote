@@ -19,22 +19,16 @@ import {
   type SelectionSnapshot,
 } from './dom/selection.ts'
 import { focusComposer } from './dom/composer-host.ts'
-import { resolveSessionId, setRuntimeSession } from './runtime.ts'
-import { saveAnnotation } from './state/annotation-store.ts'
+import { setRuntimeSession } from './runtime.ts'
+import { getAnnotations, saveAnnotation } from './state/annotation-store.ts'
 import { ensureToolbarStyles, styles } from './styles.ts'
 
 export interface SelectionToolbarProps {
-  /** Optional when mounted at shell.overlay; falls back to runtime session. */
   sessionId?: string
 }
 
 type Phase = 'idle' | 'comment'
 
-/**
- * Frame-wide selection toolbar. Mounted on `shell.overlay` (root scope) so it
- * is always live — a session-scoped composer overlay is not guaranteed to be
- * mounted while the user selects transcript text.
- */
 export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNode {
   const toolbarRef = useRef<HTMLDivElement | null>(null)
   const commentWrapRef = useRef<HTMLDivElement | null>(null)
@@ -43,12 +37,13 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
   const [phase, setPhase] = useState<Phase>('idle')
   const [comment, setComment] = useState('')
   const [status, setStatus] = useState<string | null>(null)
-  const sessionRef = useRef(sessionId)
-  sessionRef.current = sessionId
+  const activeRef = useRef<SelectionSnapshot | null>(null)
+  activeRef.current = active
 
   useEffect(() => {
     ensureToolbarStyles()
-  }, [])
+    if (sessionId) setRuntimeSession(sessionId)
+  }, [sessionId])
 
   const hide = useCallback(() => {
     setActive(null)
@@ -58,16 +53,27 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
   }, [])
 
   const refresh = useCallback(() => {
-    if (phase === 'comment') return
     const next = readSelectionSnapshot(toolbarRef.current)
+    if (!next) {
+      // Keep an open comment popover; only drop idle toolbar when selection dies.
+      if (phaseRef.current === 'idle') setActive(null)
+      return
+    }
     setActive((prev) => {
-      if (!next) return null
+      // New text while commenting → drop back to idle toolbar for the new range.
+      if (phaseRef.current === 'comment' && prev && prev.text !== next.text) {
+        setPhase('idle')
+        setComment('')
+      }
       if (prev && prev.text === next.text && prev.left === next.left && prev.top === next.top) {
         return prev
       }
       return next
     })
-  }, [phase])
+  }, [])
+
+  const phaseRef = useRef(phase)
+  phaseRef.current = phase
 
   useEffect(() => {
     const schedule = () => window.setTimeout(refresh, 0)
@@ -75,9 +81,17 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
     const onPointerDown = (event: globalThis.PointerEvent) => {
       const target = event.target
       if (!(target instanceof Node)) return
-      if (toolbarRef.current?.contains(target)) return
-      if (commentWrapRef.current?.contains(target)) return
-      if (phase === 'comment') return
+      const inToolbar = toolbarRef.current?.contains(target) === true
+      const inComment = commentWrapRef.current?.contains(target) === true
+      if (inToolbar || inComment) return
+
+      // Outside click: cancel comment mode entirely so the next selection
+      // shows the idle toolbar again.
+      if (phaseRef.current === 'comment') {
+        hide()
+        return
+      }
+
       const selection = window.getSelection()
       if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
         schedule()
@@ -86,7 +100,6 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
       hide()
     }
 
-    // selectionchange catches drag-select and keyboard selection too.
     document.addEventListener('pointerdown', onPointerDown, true)
     document.addEventListener('pointerup', schedule, true)
     document.addEventListener('keyup', schedule, true)
@@ -102,7 +115,7 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
       window.removeEventListener('resize', hide)
       document.removeEventListener('scroll', hide, true)
     }
-  }, [hide, phase, refresh])
+  }, [hide, refresh])
 
   useEffect(() => {
     if (phase === 'comment') commentRef.current?.focus()
@@ -114,7 +127,7 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
   }, [])
 
   const handleCopy = useCallback(async () => {
-    const snapshot = active
+    const snapshot = activeRef.current
     if (!snapshot) return
     try {
       await copyText(snapshot.text)
@@ -123,35 +136,37 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
     } catch {
       setStatus('复制失败')
     }
-  }, [active, hide])
+  }, [hide])
 
   const openComment = useCallback(() => {
+    if (!activeRef.current) return
     setPhase('comment')
     setComment('')
     setStatus(null)
   }, [])
 
+  /** Quick-add without opening the comment step (double-tap / “暂不评论”). */
   const commitAnnotation = useCallback(
     (body: string | undefined) => {
-      const snapshot = active
-      const sid = resolveSessionId(sessionRef.current)
-      if (!snapshot) return
-      // Session id is only used as a store partition; fall back so root mount works.
-      saveAnnotation(sid ?? 'default', {
+      const snapshot = activeRef.current
+      if (!snapshot) {
+        hide()
+        return
+      }
+      saveAnnotation(undefined, {
         text: snapshot.text,
         ...(body && body.trim() ? { comment: body.trim() } : {}),
       })
+      const count = getAnnotations().length
       clearNativeSelection()
       hide()
+      setStatus(null)
       window.setTimeout(focusComposer, 16)
+      // Transient confirmation near the composer is owned by AnnotationPanel.
+      void count
     },
-    [active, hide],
+    [hide],
   )
-
-  // Keep the shared session in sync when the owner passes one.
-  useEffect(() => {
-    if (sessionId) setRuntimeSession(sessionId)
-  }, [sessionId])
 
   if (!active) return null
 
@@ -202,7 +217,7 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
               className: styles.commentPop,
               style: {
                 left: active.left,
-                top: active.top + 36,
+                top: active.top + 40,
               },
               role: 'dialog',
               'aria-label': '添加可选评论',

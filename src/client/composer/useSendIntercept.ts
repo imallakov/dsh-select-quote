@@ -5,7 +5,6 @@ import { clearAnnotations, getAnnotations } from '../state/annotation-store.ts'
 
 export interface SendInterceptDeps {
   readonly itemCount: number
-  readonly sessionId: string | undefined
   readonly draftRef: MutableRefObject<string>
   readonly setDraft: (text: string) => void
   readonly onFolded: () => void
@@ -18,20 +17,18 @@ export interface SendInterceptDeps {
  */
 export function useSendIntercept({
   itemCount,
-  sessionId,
   draftRef,
   setDraft,
   onFolded,
 }: SendInterceptDeps): void {
   useEffect(() => {
-    const id = sessionId
-    if (itemCount === 0 || !id) return
+    if (itemCount === 0) return
 
     const inject = (): void => {
-      const current = getAnnotations(id)
+      const current = getAnnotations()
       if (current.length === 0) return
       setDraft(composeAnnotatedMessage(draftRef.current, current))
-      clearAnnotations(id)
+      clearAnnotations()
       onFolded()
     }
 
@@ -65,5 +62,5 @@ export function useSendIntercept({
       document.removeEventListener('keydown', onKeyDown, true)
       document.removeEventListener('click', onClick, true)
     }
-  }, [itemCount, sessionId, draftRef, setDraft, onFolded])
+  }, [itemCount, draftRef, setDraft, onFolded])
 }
