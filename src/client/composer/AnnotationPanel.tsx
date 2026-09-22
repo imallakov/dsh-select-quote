@@ -7,7 +7,9 @@ import {
   annotationTitle,
   clearAnnotations,
   getAnnotations,
+  removeAnnotation,
   subscribeAnnotations,
+  updateAnnotationComment,
   type SelectionAnnotation,
 } from '../state/annotation-store.ts'
 import { ensureToolbarStyles, styles } from '../styles.ts'
@@ -99,9 +101,35 @@ export function AnnotationPanel({
     clearDraftMarker(draftRef.current, setDraft)
   }, [setDraft])
 
+  const dropIfEmpty = useCallback(() => {
+    setItems(getAnnotations())
+    if (getAnnotations().length === 0) clearDraftMarker(draftRef.current, setDraft)
+  }, [setDraft])
+
   const onItemSelect = useCallback((index: number, item: AnnotationSummaryItem) => {
     scrollToAnnotation(index, item.text)
   }, [])
+
+  const onItemRemove = useCallback((_index: number, item: AnnotationSummaryItem) => {
+    if (item.id) {
+      removeAnnotation(undefined, item.id)
+    } else {
+      // Fallback: drop by text match.
+      const current = getAnnotations()
+      const hit = current.find((entry) => entry.text === item.text)
+      if (hit) removeAnnotation(undefined, hit.id)
+    }
+    dropIfEmpty()
+  }, [dropIfEmpty])
+
+  const onItemEdit = useCallback((_index: number, item: AnnotationSummaryItem) => {
+    const id = item.id ?? getAnnotations().find((entry) => entry.text === item.text)?.id
+    if (!id) return
+    const next = window.prompt('编辑批注评论（可留空）', item.comment ?? '')
+    if (next === null) return
+    updateAnnotationComment(undefined, id, next)
+    sync()
+  }, [sync])
 
   if (!sessionId || items.length === 0) return null
 
@@ -117,6 +145,8 @@ export function AnnotationPanel({
       })),
       onRemoveAll,
       onItemSelect,
+      onItemRemove,
+      onItemEdit,
     }),
   })
 }

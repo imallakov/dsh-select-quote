@@ -1,4 +1,4 @@
-import { useCallback, useRef, type ReactNode } from 'react'
+import { useCallback, useRef, useState, type ReactNode } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 import { placePopover } from '../dom/popoverPlacement.ts'
 import { styles } from '../styles.ts'
@@ -71,6 +71,7 @@ export function AnnotationCardView({
 }
 
 export interface AnnotationSummaryItem {
+  readonly id?: string
   readonly title: string
   readonly text: string
   readonly comment?: string
@@ -81,47 +82,65 @@ export interface AnnotationSummaryProps {
   readonly items: readonly AnnotationSummaryItem[]
   readonly onRemoveAll?: () => void
   readonly onItemSelect?: (index: number, item: AnnotationSummaryItem) => void
+  /** Composer only: remove one pending annotation. */
+  readonly onItemRemove?: (index: number, item: AnnotationSummaryItem) => void
+  /** Composer only: edit one pending annotation comment. */
+  readonly onItemEdit?: (index: number, item: AnnotationSummaryItem) => void
   readonly hint?: string
 }
 
-/** Qoder-style summary with a placement-aware hover list. */
+/**
+ * Qoder-style summary with a placement-aware hover list.
+ * Open/close is React state so the panel hides when the pointer leaves.
+ */
 export function AnnotationSummary({
   count,
   items,
   onRemoveAll,
   onItemSelect,
+  onItemRemove,
+  onItemEdit,
   hint = '悬停查看批注',
 }: AnnotationSummaryProps): ReactNode {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const popRef = useRef<HTMLDivElement | null>(null)
+  const [open, setOpen] = useState(false)
 
   const place = useCallback(() => {
     const root = rootRef.current
     const pop = popRef.current
     if (!root || !pop) return
     const anchor = root.getBoundingClientRect()
-    // Measure with the class toggled open so layout is real.
-    pop.style.display = 'flex'
-    pop.style.visibility = 'hidden'
-    const panel = {
-      width: pop.offsetWidth || 280,
-      height: pop.offsetHeight || 220,
-    }
-    pop.style.visibility = ''
+    const panel = { width: pop.offsetWidth || 280, height: pop.offsetHeight || 220 }
     const { top, left, side } = placePopover(anchor, panel, 'bottom')
-    // Position relative to the summary root (which is position: relative).
-    const originTop = anchor.top + (root.offsetParent ? root.offsetTop : 0)
-    // Prefer viewport-fixed coordinates converted to offset-parent space.
-    pop.style.position = 'fixed'
     pop.style.top = `${top}px`
     pop.style.left = `${left}px`
-    pop.style.right = 'auto'
     pop.dataset.side = side
   }, [])
 
   const openPop = useCallback(() => {
-    place()
-  }, [place])
+    setOpen(true)
+  }, [])
+
+  const closePop = useCallback(() => {
+    setOpen(false)
+  }, [])
+
+  // Place after open so measurement sees the real panel.
+  const onPointerEnter = useCallback(() => {
+    openPop()
+    window.requestAnimationFrame(() => place())
+  }, [openPop, place])
+
+  // Close when the pointer leaves the whole summary + popover cluster.
+  const onPointerLeave = useCallback(
+    (e: { relatedTarget: Node | null }) => {
+      const next = e.relatedTarget
+      if (next instanceof Node && rootRef.current?.contains(next)) return
+      closePop()
+    },
+    [closePop],
+  )
 
   return jsxs('div', {
     ref: rootRef,
@@ -129,8 +148,10 @@ export function AnnotationSummary({
     tabIndex: 0,
     'data-selection-annotation-summary': 'true',
     'aria-label': `${count} 条划词批注。悬停查看详情。`,
-    onPointerEnter: openPop,
-    onFocus: openPop,
+    onPointerEnter,
+    onPointerLeave,
+    onFocus: onPointerEnter,
+    onBlur: closePop,
     children: [
       jsx('div', {
         className: styles.summaryIcon,
@@ -148,50 +169,77 @@ export function AnnotationSummary({
             className: styles.summaryHint,
             children: hint,
           }),
-          jsx('div', {
-            ref: popRef,
-            className: styles.summaryHover,
-            children: jsx('div', {
-              className: styles.summaryHoverInner,
-              children: items.map((item, i) =>
-                jsxs(
-                  'button',
-                  {
-                    type: 'button',
-                    className: styles.summaryItemButton,
-                    onClick: (e: { stopPropagation: () => void }) => {
-                      e.stopPropagation()
-                      onItemSelect?.(i, item)
-                    },
-                    children: [
-                      jsxs('div', {
+          open
+            ? jsx('div', {
+                ref: popRef,
+                className: `${styles.summaryHover} ${styles.summaryHoverOpen}`,
+                children: jsx('div', {
+                  className: styles.summaryHoverInner,
+                  children: items.map((item, i) =>
+                    jsxs(
+                      'div',
+                      {
                         className: styles.summaryItem,
                         children: [
-                          jsx('div', {
-                            className: styles.summaryItemLabel,
-                            children: `${i + 1}. 选中文字`,
-                          }),
-                          jsx('div', {
-                            className: styles.summaryItemText,
-                            children: item.title,
-                          }),
-                          jsx('div', {
-                            className: styles.summaryItemLabel,
-                            children: '用户评论',
-                          }),
-                          jsx('div', {
-                            className: styles.summaryItemText,
-                            children: item.comment || '未添加评论',
-                          }),
+                          jsxs(
+                            'button',
+                            {
+                              type: 'button',
+                              className: styles.summaryItemButton,
+                              onClick: () => onItemSelect?.(i, item),
+                              children: [
+                                jsx('div', {
+                                  className: styles.summaryItemLabel,
+                                  children: `${i + 1}. 选中文字`,
+                                }),
+                                jsx('div', {
+                                  className: styles.summaryItemText,
+                                  children: item.title,
+                                }),
+                                jsx('div', {
+                                  className: styles.summaryItemLabel,
+                                  children: '用户评论',
+                                }),
+                                jsx('div', {
+                                  className: styles.summaryItemText,
+                                  children: item.comment || '未添加评论',
+                                }),
+                              ],
+                            },
+                          ),
+                          onItemRemove || onItemEdit
+                            ? jsxs('div', {
+                                className: styles.summaryItemActions,
+                                children: [
+                                  onItemEdit
+                                    ? jsx('button', {
+                                        type: 'button',
+                                        className: styles.summaryItemAction,
+                                        'aria-label': `编辑批注 ${i + 1}`,
+                                        onClick: () => onItemEdit(i, item),
+                                        children: '✎',
+                                      })
+                                    : null,
+                                  onItemRemove
+                                    ? jsx('button', {
+                                        type: 'button',
+                                        className: styles.summaryItemAction,
+                                        'aria-label': `移除批注 ${i + 1}`,
+                                        onClick: () => onItemRemove(i, item),
+                                        children: '×',
+                                      })
+                                    : null,
+                                ],
+                              })
+                            : null,
                         ],
-                      }),
-                    ],
-                  },
-                  `${i}`,
-                ),
-              ),
-            }),
-          }),
+                      },
+                      item.id ?? `${i}`,
+                    ),
+                  ),
+                }),
+              })
+            : null,
         ],
       }),
       onRemoveAll

@@ -244,11 +244,7 @@ const CSS = `
   user-select: none;
 }
 
-/* Keep hover alive across the gap: the panel uses padding as a bridge. */
-.dsq_summary:hover .dsq_summaryHover,
-.dsq_summary:focus-within .dsq_summaryHover {
-  display: flex;
-}
+/* Shown only while React state open is true (dsq_summaryHoverOpen). */
 
 .dsq_summaryIcon {
   flex: none;
@@ -282,21 +278,19 @@ const CSS = `
   color: var(--dsw-alias-label-tertiary, rgba(0, 0, 0, 0.45));
 }
 
+.dsq_summaryHoverOpen {
+  display: flex;
+}
+
 .dsq_summaryHover {
   display: none;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
+  position: fixed;
   z-index: 10050;
-  min-width: 240px;
-  max-width: 320px;
+  width: min(320px, calc(100vw - 16px));
   flex-direction: column;
   gap: 8px;
-  /* padding-top is a hover bridge so the pointer can enter the panel */
-  padding: 12px 12px 12px;
+  padding: 12px;
   padding-top: 20px;
-  margin-top: -12px;
   border-radius: 14px;
   background: transparent;
   pointer-events: auto;
@@ -327,6 +321,37 @@ const CSS = `
 
 .dsq_summaryItemButton:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.05));
+}
+
+.dsq_summaryItemActions {
+  display: none;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.dsq_summaryItem:hover .dsq_summaryItemActions,
+.dsq_summaryItem:focus-within .dsq_summaryItemActions {
+  display: flex;
+}
+
+.dsq_summaryItemAction {
+  appearance: none;
+  border: none;
+  background: transparent;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--dsw-alias-label-tertiary, rgba(0, 0, 0, 0.45));
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+}
+
+.dsq_summaryItemAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
+  color: var(--dsw-alias-label-primary, rgba(0, 0, 0, 0.88));
 }
 
 .dsq_annAnchor {
@@ -590,6 +615,9 @@ export const styles = {
   summaryItemText: 'dsq_summaryItemText',
   summaryHoverInner: 'dsq_summaryHoverInner',
   summaryItemButton: 'dsq_summaryItemButton',
+  summaryHoverOpen: 'dsq_summaryHoverOpen',
+  summaryItemActions: 'dsq_summaryItemActions',
+  summaryItemAction: 'dsq_summaryItemAction',
   annAnchor: 'dsq_annAnchor',
   commentPop: 'dsq_commentPop',
   commentInput: 'dsq_commentInput',
