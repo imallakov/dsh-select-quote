@@ -1,24 +1,22 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { QuoteCard } from './QuoteCard.tsx'
+import { QuoteCard } from './composer/QuoteCard.tsx'
 import { SelectionToolbar } from './SelectionToolbar.tsx'
-import { TranscriptQuoteCard } from './TranscriptQuoteCard.tsx'
-import { UserMessageDisplay } from './UserMessageDisplay.tsx'
-import { bindRuntime } from './runtime.ts'
+import { TranscriptQuoteCard } from './transcript/TranscriptQuoteCard.tsx'
+import { UserMessageDisplay } from './transcript/UserMessageDisplay.tsx'
 import { ensureToolbarStyles } from './styles.ts'
-import { registerSelectQuoteNode } from './transcript-node.ts'
+import { registerSelectQuoteNode } from './transcript/transcript-node.ts'
 
 /**
  * Browser half of dsh-select-quote.
  *
  * - Floating selection toolbar (copy / add-to-task)
- * - Composer quote card + `>` draft block (model payload)
- * - Transcript Chat node card for messages that carry `[选中文本]`
+ * - Composer quote cards + `>` fold-at-send (model payload)
+ * - Transcript Chat node cards + quote-stripped user bubbles
  */
 export const inject = ['slots', 'sessions', 'uiConversation']
 
 export function apply(ctx: Context): void {
   ensureToolbarStyles()
-  bindRuntime(ctx)
   registerSelectQuoteNode(ctx)
 
   ctx.slots.inject('conversation.input.overlay', () => {

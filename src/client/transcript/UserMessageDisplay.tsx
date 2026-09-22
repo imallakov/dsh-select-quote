@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
-import { ensureToolbarStyles, styles } from './styles.ts'
-import { contentBlocksToText, displayTextWithoutQuote } from './transcript-parse.ts'
+import { contentBlocksToText, displayTextWithoutQuote } from '../protocol/quote-protocol.ts'
+import { ensureToolbarStyles, styles } from '../styles.ts'
 
 export interface UserMessageDisplayProps {
   node: {
@@ -42,7 +42,10 @@ function contentImages(content: unknown): unknown[] {
  * quote-only message has no visible text at all, so the images are the only
  * thing left to show.
  */
-export function UserMessageDisplay({ node, renderMessageImages }: UserMessageDisplayProps): ReactNode {
+export function UserMessageDisplay({
+  node,
+  renderMessageImages,
+}: UserMessageDisplayProps): ReactNode {
   ensureToolbarStyles()
   const text = displayTextWithoutQuote(contentBlocksToText(node.data?.content)).trim()
   const images = contentImages(node.data?.content)
@@ -59,7 +62,11 @@ export function UserMessageDisplay({ node, renderMessageImages }: UserMessageDis
               {
                 className: styles.userImages,
                 'data-message-attachments': true,
-                children: renderMessageImages({ images, align: 'end', compact: images.length > 1 }),
+                children: renderMessageImages({
+                  images,
+                  align: 'end',
+                  compact: images.length > 1,
+                }),
               },
               'images',
             )

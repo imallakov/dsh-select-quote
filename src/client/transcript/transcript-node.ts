@@ -1,5 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { extractUserText, parseQuoteMessage, type ParsedQuote } from './transcript-parse.ts'
+import {
+  extractUserText,
+  parseQuoteMessage,
+  type ParsedQuote,
+} from '../protocol/quote-protocol.ts'
 
 /** View payload published to the `select-quote` Chat node. */
 export interface SelectQuoteNodeData {

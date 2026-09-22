@@ -10,14 +10,9 @@ import {
 } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 import { createPortal } from 'react-dom'
-import { saveQuote } from './quote-store.ts'
-import {
-  clearNativeSelection,
-  copyText,
-  focusComposer,
-  readSelectionSnapshot,
-  type SelectionSnapshot,
-} from './selection.ts'
+import { saveQuote } from './state/quote-store.ts'
+import { clearNativeSelection, copyText, readSelectionSnapshot, type SelectionSnapshot } from './dom/selection.ts'
+import { focusComposer } from './dom/composer-host.ts'
 import { ensureToolbarStyles, styles } from './styles.ts'
 
 export interface InputActionsLike {
