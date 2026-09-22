@@ -85,6 +85,14 @@ export function composeAnnotatedMessage(
   return rest ? `${block}\n\n${rest}` : `${block}\n\n`
 }
 
+
+/** Remove `# Response annotations:` instructional prose before the JSON block. */
+function stripProtocolHeader(prefix: string): string {
+  const marker = prefix.indexOf('# Response annotations:')
+  if (marker >= 0) return ''
+  return prefix.replace(/\s+$/, '')
+}
+
 export interface ParsedAnnotation {
   readonly title: string
   readonly text: string
@@ -110,7 +118,8 @@ export function scanAnnotatedMessage(text: string): AnnotationScan {
 
   const jsonStart = open + ANNOTATIONS_BLOCK_OPEN.length
   const jsonText = text.slice(jsonStart, close).trim()
-  const before = text.slice(0, open).replace(/\s+$/, '')
+  // Drop the instructional header that precedes the JSON block as well.
+  const before = stripProtocolHeader(text.slice(0, open))
   const after = text.slice(close + ANNOTATIONS_BLOCK_CLOSE.length).replace(/^\s+/, '')
   const rest = [before, after].filter((part) => part.length > 0).join('\n\n').trim()
 
