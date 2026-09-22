@@ -3,9 +3,7 @@ import { QuoteCard } from './composer/AnnotationPanel.tsx'
 import { SelectionToolbar } from './SelectionToolbar.tsx'
 import { setRuntimeSession } from './runtime.ts'
 import { ensureToolbarStyles } from './styles.ts'
-import { TranscriptQuoteCard } from './transcript/TranscriptQuoteCard.tsx'
 import { UserMessageDisplay } from './transcript/UserMessageDisplay.tsx'
-import { registerSelectQuoteNode } from './transcript/transcript-node.ts'
 
 /**
  * Browser half of dsh-select-quote.
@@ -13,11 +11,10 @@ import { registerSelectQuoteNode } from './transcript/transcript-node.ts'
  * Selection toolbar is root-scoped (`shell.overlay`) so transcript selections
  * are always observed. Annotation summary stays on the session composer.
  */
-export const inject = ['slots', 'sessions', 'uiConversation']
+export const inject = ['slots', 'sessions']
 
 export function apply(ctx: Context): void {
   ensureToolbarStyles()
-  registerSelectQuoteNode(ctx)
 
   // Root: always mounted selection toolbar + comment popover.
   ctx.slots.inject('shell.overlay', () => {
@@ -55,14 +52,8 @@ export function apply(ctx: Context): void {
     )
   })
 
+  // History: no extra annotation cards — only strip the protocol from the bubble.
   ctx.slots.inject('conversation.chat.node', () => {
-    ctx.slots.register(
-      {
-        name: 'conversation.chat.node',
-        key: 'select-quote',
-      },
-      TranscriptQuoteCard,
-    )
     ctx.slots.register(
       {
         name: 'conversation.chat.node',

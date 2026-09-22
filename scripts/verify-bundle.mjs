@@ -22,11 +22,9 @@ const require = createRequire(resolve(root, 'package.json'))
 
 /** Everything this plugin is expected to contribute when it is mounted. */
 const EXPECTED = [
-  { kind: 'events.register', label: 'conversation Definition "select-quote"' },
   { kind: 'slots.register', label: 'shell.overlay / select-quote-toolbar' },
   { kind: 'slots.register', label: 'conversation.input.overlay / select-quote-card' },
   { kind: 'slots.register', label: 'conversation.input.overlay / select-quote-session-bridge' },
-  { kind: 'slots.register', label: 'conversation.chat.node / select-quote' },
   { kind: 'slots.register', label: 'conversation.chat.node / user' },
 ]
 
