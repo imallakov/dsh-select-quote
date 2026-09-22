@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
+import { scanAnnotatedMessage } from '../protocol/annotation-protocol.ts'
 import { contentBlocksToText, displayTextWithoutQuote } from '../protocol/quote-protocol.ts'
 import { ensureToolbarStyles, styles } from '../styles.ts'
 
@@ -18,10 +19,6 @@ export interface UserMessageDisplayProps {
   t?: (key: string, params?: Record<string, unknown>) => string
 }
 
-/**
- * Image blocks carried by one durable user message, in the shape the
- * attachment presentation slot renders (`{ attachment }`).
- */
 function contentImages(content: unknown): unknown[] {
   if (!Array.isArray(content)) return []
   const images: unknown[] = []
@@ -36,18 +33,20 @@ function contentImages(content: unknown): unknown[] {
 
 /**
  * Replacement for the built-in `user` Chat node view.
- *
- * Hides the plugin `> [选中文本]` block in the bubble (the transcript card
- * already shows it) while still rendering the message's durable images — a
- * quote-only message has no visible text at all, so the images are the only
- * thing left to show.
+ * Strips the `<response-annotations>` protocol block from the bubble.
  */
 export function UserMessageDisplay({
   node,
   renderMessageImages,
 }: UserMessageDisplayProps): ReactNode {
   ensureToolbarStyles()
-  const text = displayTextWithoutQuote(contentBlocksToText(node.data?.content)).trim()
+  const raw = contentBlocksToText(node.data?.content)
+  // Prefer the structured protocol; fall back to legacy `>` quote strip.
+  const scanned = scanAnnotatedMessage(raw)
+  const text =
+    scanned.annotations.length > 0
+      ? scanned.rest
+      : displayTextWithoutQuote(raw).trim()
   const images = contentImages(node.data?.content)
   if (!text && images.length === 0) return null
 
@@ -86,7 +85,6 @@ export function UserMessageDisplay({
   })
 }
 
-/** Same treatment for admitted steering messages. */
 export function SteeringMessageDisplay(props: UserMessageDisplayProps): ReactNode {
   return UserMessageDisplay(props)
 }

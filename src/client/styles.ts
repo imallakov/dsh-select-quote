@@ -194,6 +194,183 @@ const CSS = `
   color: var(--dsw-alias-label-primary, rgba(0, 0, 0, 0.88));
 }
 
+/* Secondary corner action (edit comment). */
+.dsq_cardAction {
+  position: absolute;
+  top: 4px;
+  right: 28px;
+  z-index: 3;
+  appearance: none;
+  border: none;
+  background: transparent;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--dsw-alias-label-tertiary, rgba(0, 0, 0, 0.45));
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s, background-color 0.12s;
+}
+
+.dsq_card:hover .dsq_cardAction,
+.dsq_card:focus-within .dsq_cardAction {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.dsq_cardAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
+}
+
+/* Qoder-style annotation summary (“N 条批注”). */
+.dsq_summary {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(320px, calc(100% - 16px));
+  padding: 10px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.1));
+  border-radius: 18px;
+  background: var(--dsw-static-neutral-50, #fafafa);
+  pointer-events: auto;
+  user-select: none;
+}
+
+.dsq_summary:hover .dsq_summaryHover,
+.dsq_summary:focus-within .dsq_summaryHover {
+  display: flex;
+}
+
+.dsq_summaryIcon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.05));
+  color: var(--dsw-alias-link, rgba(0, 0, 0, 0.65));
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dsq_summaryBody {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.dsq_summaryTitle {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary, rgba(0, 0, 0, 0.88));
+}
+
+.dsq_summaryHint {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary, rgba(0, 0, 0, 0.45));
+}
+
+.dsq_summaryHover {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 50;
+  min-width: 240px;
+  max-width: 320px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 0.5px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.1));
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: var(--dsw-elevation-soft, 0 6px 20px rgba(0, 0, 0, 0.08));
+}
+
+.dsq_summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.08));
+}
+
+.dsq_summaryItem:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.dsq_summaryItemLabel {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-tertiary, rgba(0, 0, 0, 0.45));
+}
+
+.dsq_summaryItemText {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-primary, rgba(0, 0, 0, 0.88));
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Inline comment composer under the floating selection toolbar. */
+.dsq_commentPop {
+  position: fixed;
+  z-index: 10002;
+  transform: translate(-50%, 4px);
+  width: min(320px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 0.5px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.1));
+  border-radius: 14px;
+  background: var(--dsw-specific-menu, #fff);
+  box-shadow: var(--dsw-elevation-soft, 0 6px 20px rgba(0, 0, 0, 0.1));
+}
+
+.dsq_commentInput {
+  width: 100%;
+  min-height: 64px;
+  resize: none;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary, rgba(0, 0, 0, 0.88));
+  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.04));
+  outline: none;
+}
+
+.dsq_commentInput::placeholder {
+  color: var(--dsw-alias-label-tertiary, rgba(0, 0, 0, 0.45));
+}
+
+.dsq_commentActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 /* Transcript cards — in-flow Chat node (conversation history), stacked. */
 .dsq_tCardStack {
   display: flex;
@@ -353,6 +530,19 @@ export const styles = {
   cardSubtitle: 'dsq_cardSubtitle',
   cardClose: 'dsq_cardClose',
   cardPad: 'dsq_cardPad',
+  cardAction: 'dsq_cardAction',
+  summary: 'dsq_summary',
+  summaryIcon: 'dsq_summaryIcon',
+  summaryBody: 'dsq_summaryBody',
+  summaryTitle: 'dsq_summaryTitle',
+  summaryHint: 'dsq_summaryHint',
+  summaryHover: 'dsq_summaryHover',
+  summaryItem: 'dsq_summaryItem',
+  summaryItemLabel: 'dsq_summaryItemLabel',
+  summaryItemText: 'dsq_summaryItemText',
+  commentPop: 'dsq_commentPop',
+  commentInput: 'dsq_commentInput',
+  commentActions: 'dsq_commentActions',
   tCardStack: 'dsq_tCardStack',
   tCard: 'dsq_tCard',
   tCardIcon: 'dsq_tCardIcon',

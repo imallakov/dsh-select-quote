@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { QuoteCard } from './composer/QuoteCard.tsx'
+import { QuoteCard } from './composer/AnnotationPanel.tsx'
 import { SelectionToolbar } from './SelectionToolbar.tsx'
 import { TranscriptQuoteCard } from './transcript/TranscriptQuoteCard.tsx'
 import { UserMessageDisplay } from './transcript/UserMessageDisplay.tsx'
@@ -9,9 +9,10 @@ import { registerSelectQuoteNode } from './transcript/transcript-node.ts'
 /**
  * Browser half of dsh-select-quote.
  *
- * - Floating selection toolbar (copy / add-to-task)
- * - Composer quote cards + `>` fold-at-send (model payload)
- * - Transcript Chat node cards + quote-stripped user bubbles
+ * - Floating selection toolbar (copy / add annotation + optional comment)
+ * - Composer annotation summary (“N 条批注”)
+ * - Send folds a `<response-annotations>` JSON block into the message
+ * - Transcript cards + quote-stripped user bubbles
  */
 export const inject = ['slots', 'sessions', 'uiConversation']
 
@@ -38,7 +39,6 @@ export function apply(ctx: Context): void {
     )
   })
 
-  // Transcript card + user-bubble replacement (strip quote from display).
   ctx.slots.inject('conversation.chat.node', () => {
     ctx.slots.register(
       {
@@ -47,8 +47,6 @@ export function apply(ctx: Context): void {
       },
       TranscriptQuoteCard,
     )
-    // Replace user bubble so `> [选中文本]` stays out of the UI.
-    // Built-in sits at 0; other plugins may use -1. Lowest priority wins.
     ctx.slots.register(
       {
         name: 'conversation.chat.node',

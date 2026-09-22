@@ -1,35 +1,31 @@
 import type { Context } from '@deepseek-ai/cordis'
 import {
-  extractUserText,
-  parseQuoteMessage,
-  type ParsedQuote,
-} from '../protocol/quote-protocol.ts'
+  parseAnnotatedMessage,
+  scanAnnotatedMessage,
+  type ParsedAnnotation,
+} from '../protocol/annotation-protocol.ts'
+import { extractUserText } from '../protocol/quote-protocol.ts'
 
 /** View payload published to the `select-quote` Chat node. */
 export interface SelectQuoteNodeData {
-  /** Every quote carried by the one durable user message. */
-  readonly quotes: readonly ParsedQuote[]
+  readonly quotes: readonly ParsedAnnotation[]
   readonly seq: number
 }
 
 const KIND = 'select-quote'
 
-/**
- * Conversation Definition: one durable `user/message` that carries plugin quote
- * blocks becomes a `select-quote` Chat node (rendered as a card per quote).
- */
 export function createSelectQuoteDefinition() {
   return {
     kind: KIND,
     target: 'chat',
     match(event: { type?: string; seq?: number }) {
       if (event.type !== 'user/message') return null
-      if (parseQuoteMessage(extractUserText(event)).length === 0) return null
+      if (parseAnnotatedMessage(extractUserText(event)).length === 0) return null
       return { id: `${KIND}-${event.seq ?? 0}`, role: 'start' as const }
     },
     start(_context: unknown, match: { event: { seq?: number } }) {
-      const quotes = parseQuoteMessage(extractUserText(match.event))
-      if (quotes.length === 0) throw new Error('select-quote: missing quote payload on start')
+      const quotes = parseAnnotatedMessage(extractUserText(match.event))
+      if (quotes.length === 0) throw new Error('select-quote: missing annotation payload on start')
       return { quotes, seq: match.event.seq ?? 0 } satisfies SelectQuoteNodeData
     },
     update(context: { state: SelectQuoteNodeData }) {
@@ -78,3 +74,5 @@ export function registerSelectQuoteNode(ctx: Context): void {
     'dsh-select-quote: conversation node definition',
   )
 }
+
+export { scanAnnotatedMessage }
