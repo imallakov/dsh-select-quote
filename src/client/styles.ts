@@ -1,7 +1,7 @@
 const CSS = `
 .dsq_toolbar {
   position: fixed;
-  z-index: 10000;
+  z-index: 10060;
   transform: translate(-50%, -100%);
   display: flex;
   align-items: center;
@@ -51,7 +51,7 @@ const CSS = `
 
 .dsq_status {
   position: fixed;
-  z-index: 10001;
+  z-index: 10061;
   transform: translate(-50%, 8px);
   padding: 4px 10px;
   border-radius: 999px;
@@ -230,6 +230,7 @@ const CSS = `
 /* Qoder-style annotation summary (“N 条批注”) inside the composer. */
 .dsq_summary {
   position: relative;
+  z-index: 10040;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -285,7 +286,8 @@ const CSS = `
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  z-index: 50;
+  right: 0;
+  z-index: 10050;
   min-width: 240px;
   max-width: 320px;
   flex-direction: column;
@@ -331,7 +333,7 @@ const CSS = `
 /* Inline comment composer under the floating selection toolbar. */
 .dsq_commentPop {
   position: fixed;
-  z-index: 10002;
+  z-index: 10050;
   transform: translate(-50%, 4px);
   width: min(320px, calc(100vw - 24px));
   display: flex;
@@ -376,11 +378,12 @@ const CSS = `
   align-items: stretch;
   gap: 6px;
   margin: 4px 0 8px;
-  /* Match the composer summary width (~1/5 of the column). */
+  /* Match composer summary width; sit on the user-bubble side (right). */
   width: 20%;
   min-width: 148px;
   max-width: 220px;
-  margin-left: 0;
+  margin-left: auto;
+  margin-right: 0;
 }
 
 .dsq_tCard {
