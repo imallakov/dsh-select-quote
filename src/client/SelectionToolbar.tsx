@@ -12,29 +12,29 @@ import {
 } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 import { createPortal } from 'react-dom'
-import { clearNativeSelection, copyText, readSelectionSnapshot, type SelectionSnapshot } from './dom/selection.ts'
+import {
+  clearNativeSelection,
+  copyText,
+  readSelectionSnapshot,
+  type SelectionSnapshot,
+} from './dom/selection.ts'
 import { focusComposer } from './dom/composer-host.ts'
+import { resolveSessionId, setRuntimeSession } from './runtime.ts'
 import { saveAnnotation } from './state/annotation-store.ts'
 import { ensureToolbarStyles, styles } from './styles.ts'
 
-export interface InputActionsLike {
-  setDraft(text: string): void
-}
-
 export interface SelectionToolbarProps {
-  useInput: <T>(
-    selector: (state: {
-      draft: string
-      draftRev: number
-      occurrences: readonly { offset: number; length: number }[]
-    }) => T,
-  ) => T
-  inputActions: InputActionsLike
+  /** Optional when mounted at shell.overlay; falls back to runtime session. */
   sessionId?: string
 }
 
 type Phase = 'idle' | 'comment'
 
+/**
+ * Frame-wide selection toolbar. Mounted on `shell.overlay` (root scope) so it
+ * is always live — a session-scoped composer overlay is not guaranteed to be
+ * mounted while the user selects transcript text.
+ */
 export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNode {
   const toolbarRef = useRef<HTMLDivElement | null>(null)
   const commentWrapRef = useRef<HTMLDivElement | null>(null)
@@ -86,9 +86,11 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
       hide()
     }
 
+    // selectionchange catches drag-select and keyboard selection too.
     document.addEventListener('pointerdown', onPointerDown, true)
     document.addEventListener('pointerup', schedule, true)
     document.addEventListener('keyup', schedule, true)
+    document.addEventListener('selectionchange', schedule)
     window.addEventListener('resize', hide)
     document.addEventListener('scroll', hide, true)
 
@@ -96,6 +98,7 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
       document.removeEventListener('pointerdown', onPointerDown, true)
       document.removeEventListener('pointerup', schedule, true)
       document.removeEventListener('keyup', schedule, true)
+      document.removeEventListener('selectionchange', schedule)
       window.removeEventListener('resize', hide)
       document.removeEventListener('scroll', hide, true)
     }
@@ -131,12 +134,10 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
   const commitAnnotation = useCallback(
     (body: string | undefined) => {
       const snapshot = active
-      const sid = sessionRef.current
-      if (!snapshot || !sid) {
-        setStatus('会话未就绪')
-        return
-      }
-      saveAnnotation(sid, {
+      const sid = resolveSessionId(sessionRef.current)
+      if (!snapshot) return
+      // Session id is only used as a store partition; fall back so root mount works.
+      saveAnnotation(sid ?? 'default', {
         text: snapshot.text,
         ...(body && body.trim() ? { comment: body.trim() } : {}),
       })
@@ -146,6 +147,11 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
     },
     [active, hide],
   )
+
+  // Keep the shared session in sync when the owner passes one.
+  useEffect(() => {
+    if (sessionId) setRuntimeSession(sessionId)
+  }, [sessionId])
 
   if (!active) return null
 
@@ -164,14 +170,12 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
           onPointerDown: handleToolbarPointerDown,
           children:
             phase === 'comment'
-              ? jsxs('div', {
+              ? jsx('div', {
                   style: { display: 'inline-flex', alignItems: 'center', gap: 2 },
-                  children: [
-                    jsx('span', {
-                      style: { padding: '0 8px', fontSize: 13, opacity: 0.8 },
-                      children: '添加批注…',
-                    }),
-                  ],
+                  children: jsx('span', {
+                    style: { padding: '0 8px', fontSize: 13, opacity: 0.8 },
+                    children: '添加批注…',
+                  }),
                 })
               : jsxs('div', {
                   style: { display: 'inline-flex', alignItems: 'center', gap: 2 },

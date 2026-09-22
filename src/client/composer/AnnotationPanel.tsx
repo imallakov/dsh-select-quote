@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { jsx } from 'react/jsx-runtime'
 import { composerCardOf } from '../dom/composer-host.ts'
+import { resolveSessionId, setRuntimeSession } from '../runtime.ts'
 import {
   annotationTitle,
   clearAnnotations,
@@ -50,9 +51,13 @@ export function AnnotationPanel({
   }, [])
 
   const sync = useCallback(() => {
-    const id = sessionRef.current
+    const id = resolveSessionId(sessionRef.current)
     setItems(id ? getAnnotations(id) : EMPTY)
   }, [])
+
+  useEffect(() => {
+    if (sessionId) setRuntimeSession(sessionId)
+  }, [sessionId])
 
   useEffect(() => {
     ensureToolbarStyles()

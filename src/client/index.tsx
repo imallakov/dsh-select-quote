@@ -1,18 +1,17 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { QuoteCard } from './composer/AnnotationPanel.tsx'
 import { SelectionToolbar } from './SelectionToolbar.tsx'
+import { setRuntimeSession } from './runtime.ts'
+import { ensureToolbarStyles } from './styles.ts'
 import { TranscriptQuoteCard } from './transcript/TranscriptQuoteCard.tsx'
 import { UserMessageDisplay } from './transcript/UserMessageDisplay.tsx'
-import { ensureToolbarStyles } from './styles.ts'
 import { registerSelectQuoteNode } from './transcript/transcript-node.ts'
 
 /**
  * Browser half of dsh-select-quote.
  *
- * - Floating selection toolbar (copy / add annotation + optional comment)
- * - Composer annotation summary (“N 条批注”)
- * - Send folds a `<response-annotations>` JSON block into the message
- * - Transcript cards + quote-stripped user bubbles
+ * Selection toolbar is root-scoped (`shell.overlay`) so transcript selections
+ * are always observed. Annotation summary stays on the session composer.
  */
 export const inject = ['slots', 'sessions', 'uiConversation']
 
@@ -20,15 +19,20 @@ export function apply(ctx: Context): void {
   ensureToolbarStyles()
   registerSelectQuoteNode(ctx)
 
-  ctx.slots.inject('conversation.input.overlay', () => {
+  // Root: always mounted selection toolbar + comment popover.
+  ctx.slots.inject('shell.overlay', () => {
     ctx.slots.register(
       {
-        name: 'conversation.input.overlay',
+        name: 'shell.overlay',
         id: 'select-quote-toolbar',
         order: 100,
       },
       SelectionToolbar,
     )
+  })
+
+  // Session composer: pending annotation summary + send fold.
+  ctx.slots.inject('conversation.input.overlay', () => {
     ctx.slots.register(
       {
         name: 'conversation.input.overlay',
@@ -36,6 +40,18 @@ export function apply(ctx: Context): void {
         order: 20,
       },
       QuoteCard,
+    )
+  })
+
+  // Track the active session for the root toolbar (AnnotationPanel also syncs).
+  ctx.slots.inject('conversation.input.overlay', () => {
+    ctx.slots.register(
+      {
+        name: 'conversation.input.overlay',
+        id: 'select-quote-session-bridge',
+        order: 1,
+      },
+      SessionBridge,
     )
   })
 
@@ -56,4 +72,10 @@ export function apply(ctx: Context): void {
       UserMessageDisplay,
     )
   })
+}
+
+/** Invisible session-scoped bridge that publishes sessionId for the root toolbar. */
+function SessionBridge({ sessionId }: { sessionId?: string }): null {
+  setRuntimeSession(sessionId)
+  return null
 }

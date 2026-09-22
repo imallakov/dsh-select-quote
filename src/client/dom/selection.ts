@@ -11,13 +11,18 @@ const TOOLBAR_OFFSET = 12
 const VIEWPORT_MARGIN = 12
 const LINE_TOP_TOLERANCE = 3
 
-/** Contenteditable roots that must never host the selection toolbar. */
-function isInsideEditable(node: Node | null): boolean {
+/**
+ * True only for the resident composer / inputs — never for transcript text.
+ * (A broad `isContentEditable` / `role=textbox` walk rejects legitimate chat
+ * selections when an ancestor is editable.)
+ */
+function isInsideComposerInput(node: Node | null): boolean {
   let current: Node | null = node
   while (current) {
     if (current instanceof HTMLElement) {
-      if (current.isContentEditable) return true
-      if (current.getAttribute('role') === 'textbox') return true
+      if (current.closest('[data-dsq-toolbar]')) return true
+      if (current.matches('textarea, input, [data-lexical-editor="true"]')) return true
+      if (current.closest('[data-composer-card]') && current.isContentEditable) return true
     }
     current = current.parentNode
   }
@@ -57,8 +62,7 @@ function toolbarPosition(rect: DOMRect): { left: number; top: number } {
 }
 
 /**
- * Read the live selection when it is a non-empty, non-editable range.
- * Conversation-area coverage: any selectable text outside the composer.
+ * Read the live selection when it is a non-empty range outside the composer.
  */
 export function readSelectionSnapshot(toolbarRoot?: HTMLElement | null): SelectionSnapshot | null {
   const selection = window.getSelection()
@@ -66,7 +70,7 @@ export function readSelectionSnapshot(toolbarRoot?: HTMLElement | null): Selecti
 
   const { anchorNode, focusNode } = selection
   if (!anchorNode || !focusNode) return null
-  if (isInsideEditable(anchorNode) || isInsideEditable(focusNode)) return null
+  if (isInsideComposerInput(anchorNode) || isInsideComposerInput(focusNode)) return null
   if (toolbarRoot?.contains(anchorNode) || toolbarRoot?.contains(focusNode)) return null
 
   const text = selection.toString().replace(/\r\n/g, '\n').trim()
@@ -88,7 +92,6 @@ export async function copyText(text: string): Promise<void> {
     await navigator.clipboard.writeText(text)
     return
   }
-  // Fallback for older webviews.
   const area = document.createElement('textarea')
   area.value = text
   area.setAttribute('readonly', '')
