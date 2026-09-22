@@ -1,5 +1,4 @@
-import type { ReactNode } from 'react'
-import { useCallback } from 'react'
+import { useCallback, type ReactNode } from 'react'
 import { jsx } from 'react/jsx-runtime'
 import { scrollToAnnotation } from '../dom/scrollToAnnotation.ts'
 import { ensureToolbarStyles, styles } from '../styles.ts'
@@ -17,23 +16,25 @@ export interface TranscriptQuoteCardProps {
 export function TranscriptQuoteCard({ node }: TranscriptQuoteCardProps): ReactNode {
   ensureToolbarStyles()
   const quotes = node.data?.quotes ?? []
-  if (quotes.length === 0) return null
 
-  const onItemSelect = useCallback(
-    (index: number, item: AnnotationSummaryItem) => {
-      scrollToAnnotation(index, item.text)
-    },
-    [],
-  )
+  const onItemSelect = useCallback((index: number, item: AnnotationSummaryItem) => {
+    scrollToAnnotation(index, item.text)
+  }, [])
+
+  if (quotes.length === 0) return null
 
   return jsx('div', {
     className: styles.tCardStack,
     children: [
-      ...quotes.map((quote, index) =>
-        jsx('span', {
-          className: styles.annAnchor,
-          'data-dsq-ann-index': String(index),
-        }, `ann-${index}`),
+      ...quotes.map((_quote, index) =>
+        jsx(
+          'span',
+          {
+            className: styles.annAnchor,
+            'data-dsq-ann-index': String(index),
+          },
+          `ann-${index}`,
+        ),
       ),
       AnnotationSummary({
         count: quotes.length,

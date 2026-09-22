@@ -94,18 +94,16 @@ export function AnnotationPanel({
   })
 
   const onRemoveAll = useCallback(() => {
-    const active = sessionRef.current
-    if (!active) return
     clearAnnotations()
     setItems(EMPTY)
     clearDraftMarker(draftRef.current, setDraft)
   }, [setDraft])
 
-  if (!sessionId || items.length === 0) return null
-
   const onItemSelect = useCallback((index: number, item: AnnotationSummaryItem) => {
     scrollToAnnotation(index, item.text)
   }, [])
+
+  if (!sessionId || items.length === 0) return null
 
   return jsx('div', {
     ref: stackRef,
