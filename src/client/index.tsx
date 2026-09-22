@@ -31,11 +31,11 @@ export function apply(ctx: Context): void {
     )
   })
 
-  // Session composer: pending annotation summary + send fold.
-  ctx.slots.inject('conversation.input.overlay', () => {
+  // Session: pending annotation summary sits ABOVE the composer (in-flow).
+  ctx.slots.inject('conversation.input.dock', () => {
     ctx.slots.register(
       {
-        name: 'conversation.input.overlay',
+        name: 'conversation.input.dock',
         id: 'select-quote-card',
         order: 20,
       },

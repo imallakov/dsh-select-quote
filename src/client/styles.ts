@@ -63,20 +63,14 @@ const CSS = `
   white-space: nowrap;
 }
 
-/* Quote card row — floats inside the composer card (input.overlay layer).
-   Cards fill left to right and wrap onto the next line. */
+/* Annotation stack — in-flow above the composer (input.dock). */
 .dsq_cardStack {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  right: 8px;
-  z-index: 40;
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
   gap: 6px;
-  pointer-events: none;
+  margin: 0 0 8px;
+  pointer-events: auto;
 }
 
 /* One quote card. Geometry mirrors the product's own file card
@@ -227,16 +221,14 @@ const CSS = `
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
 }
 
-/* Qoder-style annotation summary (“N 条批注”). */
+/* Qoder-style annotation summary (“N 条批注”) — in-flow, never covers the draft. */
 .dsq_summary {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 40;
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  max-width: min(320px, calc(100% - 16px));
+  width: 100%;
+  max-width: 100%;
   padding: 10px 12px;
   border: 0.5px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.1));
   border-radius: 18px;

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { jsx } from 'react/jsx-runtime'
-import { composerCardOf } from '../dom/composer-host.ts'
 import { setRuntimeSession } from '../runtime.ts'
 import {
   annotationTitle,
@@ -38,7 +37,6 @@ export function AnnotationPanel({
 }: AnnotationPanelProps): ReactNode {
   const draft = useInput((state) => state.draft)
   const [items, setItems] = useState<readonly SelectionAnnotation[]>(EMPTY)
-  const stackRef = useRef<HTMLDivElement | null>(null)
   const draftRef = useRef(draft)
   const actionsRef = useRef(inputActions)
   const sessionRef = useRef(sessionId)
@@ -64,25 +62,6 @@ export function AnnotationPanel({
     return subscribeAnnotations(sync)
   }, [sync, sessionId])
 
-  useEffect(() => {
-    const element = stackRef.current
-    if (!element) return
-    const card = composerCardOf(element)
-    if (!card) return
-    const apply = (): void => {
-      card.style.setProperty('--dsq-quote-pad', `${element.offsetHeight + 20}px`)
-    }
-    card.classList.add(styles.cardPad)
-    apply()
-    const observer = new ResizeObserver(apply)
-    observer.observe(element)
-    return () => {
-      observer.disconnect()
-      card.classList.remove(styles.cardPad)
-      card.style.removeProperty('--dsq-quote-pad')
-    }
-  }, [items])
-
   useDraftMarker({ itemCount: items.length, draftRef, setDraft })
   useSendIntercept({
     itemCount: items.length,
@@ -102,7 +81,6 @@ export function AnnotationPanel({
   if (!sessionId || items.length === 0) return null
 
   return jsx('div', {
-    ref: stackRef,
     className: styles.cardStack,
     children: AnnotationSummary({
       count: items.length,
