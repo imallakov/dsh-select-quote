@@ -63,13 +63,19 @@ const CSS = `
   white-space: nowrap;
 }
 
-/* Annotation stack — in-flow above the composer (input.dock). */
+/* Annotation stack — inside the composer card (input.overlay), ~1/5 width. */
 .dsq_cardStack {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 40;
+  width: 20%;
+  min-width: 148px;
+  max-width: 220px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
-  margin: 0 0 8px;
   pointer-events: auto;
 }
 
@@ -221,7 +227,7 @@ const CSS = `
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
 }
 
-/* Qoder-style annotation summary (“N 条批注”) — in-flow, never covers the draft. */
+/* Qoder-style annotation summary (“N 条批注”) inside the composer. */
 .dsq_summary {
   position: relative;
   display: flex;
