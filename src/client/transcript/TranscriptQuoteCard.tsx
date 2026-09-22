@@ -36,7 +36,7 @@ export function TranscriptQuoteCard({ node }: TranscriptQuoteCardProps): ReactNo
           `ann-${index}`,
         ),
       ),
-      AnnotationSummary({
+      jsx(AnnotationSummary, {
         count: quotes.length,
         items: quotes.map((quote) => ({
           title: quote.title,

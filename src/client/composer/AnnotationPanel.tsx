@@ -108,7 +108,7 @@ export function AnnotationPanel({
   return jsx('div', {
     ref: stackRef,
     className: styles.cardStack,
-    children: AnnotationSummary({
+    children: jsx(AnnotationSummary, {
       count: items.length,
       items: items.map((item) => ({
         title: annotationTitle(item),
