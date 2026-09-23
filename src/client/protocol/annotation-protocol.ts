@@ -102,6 +102,11 @@ export interface ParsedAnnotation {
   readonly title: string
   readonly text: string
   readonly comment: string
+  /** Durable message identity of the annotated source (flow key when known). */
+  readonly messageId?: string
+  /** Character offsets into that message's rendered text. */
+  readonly startOffset?: number
+  readonly endOffset?: number
 }
 
 export interface AnnotationScan {
@@ -139,13 +144,25 @@ export function scanAnnotatedMessage(text: string): AnnotationScan {
   const annotations: ParsedAnnotation[] = []
   for (const entry of parsed) {
     if (!entry || typeof entry !== 'object') continue
-    const record = entry as { text?: unknown; annotation?: unknown }
+    const record = entry as { text?: unknown; annotation?: unknown; source?: unknown; sources?: unknown }
     const body = typeof record.text === 'string' ? record.text.trim() : ''
     if (!body) continue
+    const source =
+      record.source && typeof record.source === 'object'
+        ? (record.source as AnnotationSource)
+        : Array.isArray(record.sources)
+          ? (record.sources.find((item) => item && typeof item === 'object') as AnnotationSource | undefined)
+          : undefined
+    const messageId = typeof source?.messageId === 'string' ? source.messageId : undefined
+    const startOffset = typeof source?.startOffset === 'number' ? source.startOffset : undefined
+    const endOffset = typeof source?.endOffset === 'number' ? source.endOffset : undefined
     annotations.push({
       title: previewTitle(body),
       text: body,
       comment: typeof record.annotation === 'string' ? record.annotation : '',
+      ...(messageId ? { messageId } : {}),
+      ...(startOffset !== undefined ? { startOffset } : {}),
+      ...(endOffset !== undefined ? { endOffset } : {}),
     })
   }
   return { annotations, rest }

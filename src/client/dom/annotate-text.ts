@@ -1,0 +1,289 @@
+/**
+ * Inline annotation marks in message bodies.
+ *
+ * Every annotation (pending in the composer, or durable in a sent message)
+ * resolves to a character range inside its source message. The range is
+ * wrapped in a `.dsq_annMark` span — highlight underline plus a circular
+ * ordinal badge — and kept in sync with the transcript through a
+ * MutationObserver, because React re-renders replace the marked nodes.
+ */
+
+import { styles } from '../styles.ts'
+import type { SelectionAnnotation } from '../state/annotation-store.ts'
+import { cleanTextOf, cleanTextRange, overlappingEntries } from './message-text.ts'
+
+const MARK_ATTR = 'data-dsq-ann-mark'
+const INDEX_ATTR = 'data-dsq-ann-index'
+const FLASH_MS = 1500
+
+export interface AnnotationJob {
+  /** Stable id of the mark; doubles as the summary item's scroll key. */
+  readonly markId: string
+  /** `data-chat-flow-key` of the message that owns the annotated text. */
+  readonly messageId: string
+  /** One-based annotation number shown in the badge. */
+  readonly index: number
+  readonly text: string
+  readonly startOffset?: number
+  readonly endOffset?: number
+}
+
+const jobs = new Map<string, AnnotationJob>()
+let pendingIds = new Set<string>()
+
+function attrValue(value: string): string {
+  return value.replace(/["\\]/g, '\\$&')
+}
+
+function flowItems(messageId: string, scope: ParentNode): HTMLElement[] {
+  if (messageId !== '') {
+    const item = scope.querySelector(`[data-chat-flow-key="${attrValue(messageId)}"]`)
+    return item instanceof HTMLElement ? [item] : []
+  }
+  // No durable locator (older wire format): search every rendered message.
+  return [...scope.querySelectorAll('[data-chat-flow-key]')].filter(
+    (node): node is HTMLElement => node instanceof HTMLElement,
+  )
+}
+
+/**
+ * Whitespace-insensitive comparison: `selection.toString()` inserts newlines
+ * at block boundaries, while the clean-text concatenation has none, so both
+ * sides are compared with all whitespace removed.
+ */
+function sameText(a: string, b: string): boolean {
+  const norm = (value: string): string => value.replace(/\s+/g, '')
+  return norm(a) === norm(b)
+}
+
+function isMarked(pieces: readonly { entry: { node: Text } }[]): boolean {
+  const first = pieces[0]
+  if (!first) return false
+  return first.entry.node.parentElement?.closest(`[${MARK_ATTR}]`) != null
+}
+
+function createMark(job: AnnotationJob, withIndex: boolean): HTMLSpanElement {
+  const mark = document.createElement('span')
+  mark.className = styles.annMark
+  mark.setAttribute(MARK_ATTR, job.markId)
+  // Only the last fragment carries the ordinal, so the corner badge shows once.
+  if (withIndex) mark.setAttribute(INDEX_ATTR, String(job.index))
+  return mark
+}
+
+/**
+ * Wrap `[from, to)` in marks. Each text-node fragment becomes its own span so
+ * selections that cross inline elements or paragraph boundaries never reorder
+ * the DOM; fragments of one annotation share the mark id, and the ordinal
+ * badge rides on the final fragment (end of the annotation).
+ */
+function wrapRange(item: HTMLElement, job: AnnotationJob, from: number, to: number): boolean {
+  const located = cleanTextRange(item, from, to)
+  if (!located) return false
+  const pieces = overlappingEntries(located.entries, located.from, located.to)
+  if (pieces.length === 0) return false
+
+  let wrapped = false
+  pieces.forEach((piece, i) => {
+    const node = piece.entry.node
+    const parent = node.parentElement
+    if (!parent) return
+    const range = document.createRange()
+    range.setStart(node, piece.start - piece.entry.start)
+    range.setEnd(node, piece.end - piece.entry.start)
+    const mark = createMark(job, i === pieces.length - 1)
+    mark.append(range.extractContents())
+    parent.insertBefore(mark, node.nextSibling)
+    if (node.nodeValue === '') node.remove()
+    wrapped = true
+  })
+  return wrapped
+}
+
+function decorateAtOffsets(item: HTMLElement, job: AnnotationJob): boolean {
+  if (job.startOffset === undefined || job.endOffset === undefined) return false
+  const located = cleanTextRange(item, job.startOffset, job.endOffset)
+  if (!located) return false
+  if (!sameText(cleanTextOf(item).slice(located.from, located.to), job.text)) return false
+  const pieces = overlappingEntries(located.entries, located.from, located.to)
+  if (pieces.length === 0 || isMarked(pieces)) return false
+  return wrapRange(item, job, located.from, located.to)
+}
+
+function decorateBySearch(item: HTMLElement, job: AnnotationJob): boolean {
+  const full = cleanTextOf(item)
+  const needle = job.text.trim()
+  if (needle.length < 2) return false
+  // Second pattern tolerates block boundaries: selection text carries newlines
+  // the DOM concatenation does not, so words may adjoin with zero whitespace.
+  const patterns = [needle, needle.split(/\s+/).map(escapeRegExp).join('\\s*')]
+  for (const pattern of patterns) {
+    let at = full.indexOf(pattern)
+    while (at >= 0) {
+      const located = cleanTextRange(item, at, at + pattern.length)
+      if (located) {
+        const pieces = overlappingEntries(located.entries, located.from, located.to)
+        if (pieces.length > 0 && !isMarked(pieces) && wrapRange(item, job, located.from, located.to)) {
+          return true
+        }
+      }
+      at = full.indexOf(pattern, at + 1)
+    }
+  }
+  return false
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function decorateJob(item: HTMLElement, job: AnnotationJob): boolean {
+  if (decorateAtOffsets(item, job)) return true
+  return decorateBySearch(item, job)
+}
+
+/** Apply every registered job whose message is currently rendered. */
+export function applyAnnotationMarks(root?: ParentNode): void {
+  if (jobs.size === 0) return
+  const scope = root ?? (typeof document === 'undefined' ? undefined : document.body)
+  if (!scope) return
+  for (const job of [...jobs.values()]) {
+    const items = flowItems(job.messageId, scope)
+    for (const item of items) {
+      if (item.querySelector(`[${MARK_ATTR}="${attrValue(job.markId)}"]`)) break
+      // Cheap pre-filter for locator-less jobs, which scan every message.
+      if (job.messageId === '' && !item.textContent?.includes(job.text.trim().slice(0, 16))) {
+        continue
+      }
+      if (decorateJob(item, job)) break
+    }
+  }
+}
+
+/** Insert or refresh jobs; identical jobs are no-ops. */
+export function upsertAnnotationJobs(next: readonly AnnotationJob[]): void {
+  let changed = false
+  for (const job of next) {
+    const prev = jobs.get(job.markId)
+    if (
+      prev &&
+      prev.messageId === job.messageId &&
+      prev.index === job.index &&
+      prev.text === job.text &&
+      prev.startOffset === job.startOffset &&
+      prev.endOffset === job.endOffset
+    ) {
+      continue
+    }
+    jobs.set(job.markId, job)
+    changed = true
+  }
+  if (changed) applyAnnotationMarks()
+}
+
+function unwrapMarks(markId: string): void {
+  const marks = document.querySelectorAll(`[${MARK_ATTR}="${attrValue(markId)}"]`)
+  for (const mark of marks) {
+    const parent = mark.parentNode
+    if (!parent) continue
+    while (mark.firstChild) parent.insertBefore(mark.firstChild, mark)
+    parent.removeChild(mark)
+    parent.normalize()
+  }
+}
+
+/** Drop jobs and unwrap their marks (annotation removed). */
+export function dropAnnotationJobs(ids: readonly string[]): void {
+  let changed = false
+  for (const id of ids) {
+    if (jobs.delete(id)) {
+      unwrapMarks(id)
+      changed = true
+    }
+  }
+  if (changed) applyAnnotationMarks()
+}
+
+/** Diff the pending store into jobs; call on every annotation-store change. */
+export function syncPendingAnnotationJobs(annotations: readonly SelectionAnnotation[]): void {
+  const next = new Set(annotations.map((item) => item.id))
+  const removed = [...pendingIds].filter((id) => !next.has(id))
+  pendingIds = next
+  if (removed.length > 0) dropAnnotationJobs(removed)
+  upsertAnnotationJobs(
+    annotations.map((item, i) => ({
+      markId: item.id,
+      messageId: item.sources[0]?.messageId ?? '',
+      index: i + 1,
+      text: item.text,
+      startOffset: item.sources[0]?.startOffset,
+      endOffset: item.sources[0]?.endOffset,
+    })),
+  )
+}
+
+/** Observe the transcript and re-apply marks after re-renders. Returns disposer. */
+export function watchAnnotationMarks(root?: ParentNode): () => void {
+  const el = root ?? (typeof document === 'undefined' ? undefined : document.body)
+  if (!el || typeof MutationObserver === 'undefined') return () => {}
+  applyAnnotationMarks(el)
+  let frame = 0
+  const schedule = (): void => {
+    if (frame !== 0) return
+    frame = window.requestAnimationFrame(() => {
+      frame = 0
+      applyAnnotationMarks(el)
+    })
+  }
+  const observer = new MutationObserver(schedule)
+  observer.observe(el, { childList: true, subtree: true })
+  return () => {
+    observer.disconnect()
+    if (frame !== 0) window.cancelAnimationFrame(frame)
+  }
+}
+
+/** Mark for an annotation number, optionally restricted to `markId`. */
+export function findAnnotationMark(
+  index: number,
+  text?: string,
+  markId?: string,
+): HTMLElement | null {
+  if (markId) {
+    const direct = document.querySelector(`[${MARK_ATTR}="${attrValue(markId)}"]`)
+    if (direct instanceof HTMLElement) return direct
+  }
+  const marks = [...document.querySelectorAll(`[${INDEX_ATTR}="${index}"]`)].filter(
+    (node): node is HTMLElement => node instanceof HTMLElement,
+  )
+  if (marks.length === 0) return null
+  if (text) {
+    const hit = marks.find((mark) => sameText(mark.textContent ?? '', text))
+    if (hit) return hit
+  }
+  return marks[0]
+}
+
+/**
+ * Mark for an annotation number that sits at or before `anchor` in the
+ * transcript — the annotation belongs to the user turn preceding the reply
+ * that references it.
+ */
+export function findAnnotationMarkBefore(index: number, anchor: HTMLElement): HTMLElement | null {
+  const marks = [...document.querySelectorAll(`[${INDEX_ATTR}="${index}"]`)].filter(
+    (node): node is HTMLElement => node instanceof HTMLElement,
+  )
+  if (marks.length === 0) return null
+  const before = marks.filter((mark) => {
+    if (mark === anchor) return true
+    return (mark.compareDocumentPosition(anchor) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+  })
+  return before[before.length - 1] ?? marks[0]
+}
+
+/** Scroll a mark into view and flash it. */
+export function flashAnnotationMark(mark: HTMLElement): void {
+  mark.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  mark.classList.add(styles.annMarkFlash)
+  window.setTimeout(() => mark.classList.remove(styles.annMarkFlash), FLASH_MS)
+}

@@ -1,11 +1,14 @@
 /**
- * Scroll the conversation to one annotation: prefer its transcript anchor,
- * then a DOM node that still contains the selected text.
+ * Scroll the conversation to one annotation: its inline mark in the message
+ * body first, then a DOM node that still contains the selected text.
  */
-export function scrollToAnnotation(index: number, text: string): void {
-  const anchor = document.querySelector(`[data-dsq-ann-index="${index}"]`)
-  if (anchor instanceof HTMLElement) {
-    anchor.scrollIntoView({ block: 'center', behavior: 'smooth' })
+
+import { findAnnotationMark, flashAnnotationMark } from './annotate-text.ts'
+
+export function scrollToAnnotation(index: number, text: string, markId?: string): void {
+  const mark = findAnnotationMark(index, text, markId)
+  if (mark) {
+    flashAnnotationMark(mark)
     return
   }
   const byText = findElementByText(text)

@@ -1,10 +1,14 @@
 /** Selection snapshot used by the floating toolbar. */
+import { rangeOffsetsInFlowItem, type MessageLocator } from './message-text.ts'
+
 export interface SelectionSnapshot {
   /** Trimmed selected text. */
   readonly text: string
   /** Toolbar anchor: center-x / top-y in viewport coordinates. */
   readonly left: number
   readonly top: number
+  /** Where the selection lives in the transcript, when it resolves. */
+  readonly source?: MessageLocator
 }
 
 const TOOLBAR_OFFSET = 12
@@ -80,7 +84,8 @@ export function readSelectionSnapshot(toolbarRoot?: HTMLElement | null): Selecti
   if (!rect) return null
 
   const { left, top } = toolbarPosition(rect)
-  return { text, left, top }
+  const source = rangeOffsetsInFlowItem(selection.getRangeAt(0))
+  return { text, left, top, ...(source ? { source } : {}) }
 }
 
 export function clearNativeSelection(): void {

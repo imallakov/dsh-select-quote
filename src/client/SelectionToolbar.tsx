@@ -23,6 +23,7 @@ import { placePopover } from './dom/popoverPlacement.ts'
 import { setRuntimeSession } from './runtime.ts'
 import { getAnnotations, saveAnnotation } from './state/annotation-store.ts'
 import { ensureToolbarStyles, styles } from './styles.ts'
+import { LucideIcon } from './ui/icons.tsx'
 
 export interface SelectionToolbarProps {
   sessionId?: string
@@ -78,6 +79,9 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
 
   useEffect(() => {
     const schedule = () => window.setTimeout(refresh, 0)
+    // The toolbar waits for the drag to end: selectionchange fires continuously
+    // mid-drag, so it must not raise the toolbar — pointerup does.
+    let dragging = false
 
     const onPointerDown = (event: globalThis.PointerEvent) => {
       const target = event.target
@@ -85,6 +89,8 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
       const inToolbar = toolbarRef.current?.contains(target) === true
       const inComment = commentWrapRef.current?.contains(target) === true
       if (inToolbar || inComment) return
+      // Any outside press may start a new selection drag.
+      dragging = true
 
       // Outside click: cancel comment mode entirely so the next selection
       // shows the idle toolbar again.
@@ -101,24 +107,35 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
       hide()
     }
 
+    const onPointerUp = () => {
+      dragging = false
+      schedule()
+    }
+
+    const onSelectionChange = () => {
+      if (dragging) return
+      schedule()
+    }
+
     document.addEventListener('pointerdown', onPointerDown, true)
-    document.addEventListener('pointerup', schedule, true)
+    document.addEventListener('pointerup', onPointerUp, true)
     document.addEventListener('keyup', schedule, true)
-    document.addEventListener('selectionchange', schedule)
+    document.addEventListener('selectionchange', onSelectionChange)
     window.addEventListener('resize', hide)
     document.addEventListener('scroll', hide, true)
 
     return () => {
       document.removeEventListener('pointerdown', onPointerDown, true)
-      document.removeEventListener('pointerup', schedule, true)
+      document.removeEventListener('pointerup', onPointerUp, true)
       document.removeEventListener('keyup', schedule, true)
-      document.removeEventListener('selectionchange', schedule)
+      document.removeEventListener('selectionchange', onSelectionChange)
       window.removeEventListener('resize', hide)
       document.removeEventListener('scroll', hide, true)
     }
   }, [hide, refresh])
 
-  // Flip the comment popover when the preferred side lacks room.
+  // Flip the comment popover when the preferred side lacks room, and center it
+  // on the selection (the CSS transform shifts it back by half its width).
   const placeCommentPop = useCallback(() => {
     const toolbar = toolbarRef.current
     const pop = commentWrapRef.current
@@ -128,9 +145,14 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
     pop.style.visibility = 'hidden'
     const panel = { width: pop.offsetWidth || 320, height: pop.offsetHeight || 180 }
     pop.style.visibility = ''
-    const { top, left } = placePopover(anchor, panel, 'bottom')
+    const { top } = placePopover(anchor, panel, 'bottom')
+    const half = panel.width / 2 + 8
+    const center = Math.min(
+      Math.max(anchor.left + anchor.width / 2, half),
+      Math.max(half, window.innerWidth - half),
+    )
     pop.style.top = `${top}px`
-    pop.style.left = `${left}px`
+    pop.style.left = `${center}px`
   }, [])
 
   useEffect(() => {
@@ -175,6 +197,17 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
       saveAnnotation(undefined, {
         text: snapshot.text,
         ...(body && body.trim() ? { comment: body.trim() } : {}),
+        sources: snapshot.source
+          ? [
+              {
+                text: snapshot.text,
+                messageId: snapshot.source.messageId,
+                messageKind: snapshot.source.messageKind,
+                startOffset: snapshot.source.startOffset,
+                endOffset: snapshot.source.endOffset,
+              },
+            ]
+          : undefined,
       })
       const count = getAnnotations().length
       clearNativeSelection()
@@ -218,14 +251,20 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
                       type: 'button',
                       className: styles.button,
                       onClick: () => void handleCopy(),
-                      children: '复制',
+                      children: [
+                        jsx(LucideIcon, { name: 'copy', size: 14 }),
+                        '复制',
+                      ],
                     }),
                     jsx('span', { className: styles.divider, 'aria-hidden': true }),
                     jsx('button', {
                       type: 'button',
                       className: styles.button,
                       onClick: openComment,
-                      children: '添加到任务',
+                      children: [
+                        jsx(LucideIcon, { name: 'plus', size: 14 }),
+                        '添加到任务',
+                      ],
                     }),
                   ],
                 }),

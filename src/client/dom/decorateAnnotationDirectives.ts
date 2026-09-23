@@ -4,7 +4,7 @@
  */
 
 import { ANNOTATION_DIRECTIVE_RE } from '../protocol/annotation-protocol.ts'
-import { scrollToAnnotation } from './scrollToAnnotation.ts'
+import { findAnnotationMarkBefore, flashAnnotationMark } from './annotate-text.ts'
 
 const DECO = 'dsq-ann-directive'
 
@@ -27,10 +27,12 @@ function decorateTextNode(node: Text): void {
     chip.type = 'button'
     chip.className = 'dsq_annDirective'
     chip.dataset[DECO] = String(index)
+    chip.setAttribute('data-dsq-deco', 'true')
     chip.textContent = `批注 ${index}`
     chip.addEventListener('click', () => {
-      const item = { text: chip.title || `批注 ${index}` }
-      scrollToAnnotation(index - 1, item.text)
+      // The annotation lives in the user turn that precedes this reply.
+      const mark = findAnnotationMarkBefore(index, chip)
+      if (mark) flashAnnotationMark(mark)
     })
     frag.append(chip)
     last = m.index + m[0].length

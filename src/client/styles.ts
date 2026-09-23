@@ -14,6 +14,19 @@ const CSS = `
   background: var(--dsw-alias-bg-layer-2, #fff);
   box-shadow: var(--dsw-elevation-soft, 0 1px 2px rgba(0, 0, 0, 0.03), 0 6px 20px rgba(0, 0, 0, 0.06));
   pointer-events: auto;
+  /* Mounts once per selection, after the drag ends: soft rise + fade. */
+  animation: dsq-toolbar-in 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes dsq-toolbar-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -100%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%);
+  }
 }
 
 .dsq_button {
@@ -40,6 +53,10 @@ const CSS = `
 .dsq_button:focus-visible {
   outline: 2px solid var(--dsw-alias-button-primary-fill, #1677ff);
   outline-offset: 1px;
+}
+
+.dsq_button svg {
+  flex: none;
 }
 
 .dsq_divider {
@@ -184,7 +201,9 @@ const CSS = `
 }
 
 .dsq_card:hover .dsq_cardClose,
-.dsq_card:focus-within .dsq_cardClose {
+.dsq_card:focus-within .dsq_cardClose,
+.dsq_summary:hover .dsq_cardClose,
+.dsq_summary:focus-within .dsq_cardClose {
   opacity: 1;
   pointer-events: auto;
 }
@@ -236,15 +255,13 @@ const CSS = `
   gap: 10px;
   width: 100%;
   max-width: 100%;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 0.5px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.1));
   border-radius: 18px;
   background: var(--dsw-static-neutral-50, #fafafa);
   pointer-events: auto;
   user-select: none;
 }
-
-/* Shown only while React state open is true (dsq_summaryHoverOpen). */
 
 .dsq_summaryIcon {
   flex: none;
@@ -278,80 +295,146 @@ const CSS = `
   color: var(--dsw-alias-label-tertiary, rgba(0, 0, 0, 0.45));
 }
 
-.dsq_summaryHoverOpen {
-  display: flex;
-}
-
 .dsq_summaryHover {
   display: none;
   position: fixed;
   z-index: 10050;
   width: min(320px, calc(100vw - 16px));
   flex-direction: column;
-  gap: 8px;
   padding: 12px;
-  padding-top: 20px;
-  border-radius: 14px;
+  /* Facing-side pad is set in JS from placement side; this is the base. */
+  padding-top: 12px;
+  padding-bottom: 12px;
   background: transparent;
   pointer-events: auto;
+  opacity: 0;
+}
+
+/* Must come after .dsq_summaryHover (same class weight otherwise loses to display:none). */
+.dsq_summaryHover.dsq_summaryHoverOpen {
+  display: flex;
+  transition: opacity 0.12s ease;
+  animation: dsq-panel-in 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dsq_summaryHover[data-side='bottom'] {
+  transform-origin: top center;
+}
+
+.dsq_summaryHover[data-side='top'] {
+  transform-origin: bottom center;
+}
+
+@keyframes dsq-panel-in {
+  from {
+    transform: scale(0.96);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 .dsq_summaryHoverInner {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
+  gap: 4px;
+  max-height: min(420px, calc(100vh - 120px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
   border-radius: 14px;
   border: 0.5px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.1));
-  background: var(--dsw-specific-menu, #fff);
-  box-shadow: var(--dsw-elevation-soft, 0 6px 20px rgba(0, 0, 0, 0.08));
+  /* Frosted panel: the menu token at partial alpha over a blur. */
+  background: color-mix(in srgb, var(--dsw-specific-menu, #fff) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: var(--dsw-elevation-prominent, 0 3px 8px rgba(0, 0, 0, 0.04), 0 0 20px rgba(0, 0, 0, 0.05));
 }
 
-.dsq_summaryItemButton {
-  appearance: none;
-  text-align: left;
-  font: inherit;
-  border: none;
-  background: transparent;
-  cursor: pointer;
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .dsq_summaryHoverInner {
+    background: var(--dsw-specific-menu, #fff);
+  }
+}
+
+.dsq_summaryItem {
+  display: block;
+  padding: 8px 10px;
   border-radius: 10px;
-  padding: 6px 8px;
-  margin: 0 -8px;
+  transition: background-color 0.12s;
 }
 
-.dsq_summaryItemButton:hover {
+.dsq_summaryItem:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.05));
 }
 
+.dsq_summaryItemHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dsq_summaryItemBadge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--dsw-static-blue-500, #3b82f6);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
 .dsq_summaryItemActions {
-  display: none;
-  justify-content: flex-end;
-  gap: 4px;
-  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  opacity: 0.5;
+  transition: opacity 0.12s;
 }
 
 .dsq_summaryItem:hover .dsq_summaryItemActions,
 .dsq_summaryItem:focus-within .dsq_summaryItemActions {
-  display: flex;
+  opacity: 1;
 }
 
 .dsq_summaryItemAction {
   appearance: none;
   border: none;
   background: transparent;
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
   cursor: pointer;
   color: var(--dsw-alias-label-tertiary, rgba(0, 0, 0, 0.45));
   display: grid;
   place-items: center;
-  font-size: 12px;
 }
 
 .dsq_summaryItemAction:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
   color: var(--dsw-alias-label-primary, rgba(0, 0, 0, 0.88));
+}
+
+.dsq_summaryItemMain {
+  min-width: 0;
+}
+
+.dsq_summaryItemButton {
+  appearance: none;
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 2px 0 0;
 }
 
 .dsq_annAnchor {
@@ -360,23 +443,6 @@ const CSS = `
   height: 0;
   overflow: hidden;
   pointer-events: none;
-}
-
-.dsq_summaryItem {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-bottom: 8px;
-  border-bottom: 0.5px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.08));
-}
-
-.dsq_summaryItem:last-child {
-  border-bottom: none;
-}
-
-.dsq_summaryItem:last-child {
-  padding-bottom: 0;
-  border-bottom: none;
 }
 
 .dsq_summaryItemLabel {
@@ -397,6 +463,88 @@ const CSS = `
   overflow: hidden;
 }
 
+.dsq_summaryItemTextEmpty {
+  color: var(--dsw-alias-label-tertiary, rgba(0, 0, 0, 0.45));
+}
+
+/* Inline edit form rendered inside the hover panel item (no extra layer). */
+.dsq_annEditText {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary, rgba(0, 0, 0, 0.88));
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 132px;
+  overflow-y: auto;
+  margin: 2px 0 6px;
+}
+
+.dsq_annEditInput {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary, rgba(0, 0, 0, 0.88));
+  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.04));
+  outline: none;
+}
+
+.dsq_annEditInput::placeholder {
+  color: var(--dsw-alias-label-tertiary, rgba(0, 0, 0, 0.45));
+}
+
+.dsq_annEditActions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.dsq_annEditCancel {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, rgba(0, 0, 0, 0.65));
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.dsq_annEditCancel:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.05));
+}
+
+.dsq_annEditSave {
+  appearance: none;
+  border: none;
+  background: var(--dsw-static-blue-500, #3b82f6);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: filter 0.12s;
+}
+
+.dsq_annEditSave:hover {
+  filter: brightness(1.06);
+}
+
+.dsq_annEditSave:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Inline comment composer under the floating selection toolbar. */
 .dsq_commentPop {
   position: fixed;
@@ -409,11 +557,14 @@ const CSS = `
   padding: 10px;
   border: 0.5px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.1));
   border-radius: 14px;
-  background: var(--dsw-specific-menu, #fff);
-  box-shadow: var(--dsw-elevation-soft, 0 6px 20px rgba(0, 0, 0, 0.1));
+  background: color-mix(in srgb, var(--dsw-specific-menu, #fff) 88%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: var(--dsw-elevation-prominent, 0 3px 8px rgba(0, 0, 0, 0.04), 0 0 20px rgba(0, 0, 0, 0.05));
 }
 
 .dsq_commentInput {
+  box-sizing: border-box;
   width: 100%;
   min-height: 64px;
   resize: none;
@@ -598,6 +749,64 @@ body[data-ds-dark-theme] .dsq_tCard {
 .dsq_annDirective:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.08));
 }
+
+/* Inline annotation mark in message bodies: highlight underline + ordinal badge. */
+.dsq_annMark {
+  --dsq-mark-color: var(--dsw-static-blue-500, #3b82f6);
+  --dsq-mark-tint: var(--dsw-static-blue-50p, #eaf3ff);
+  background: var(--dsq-mark-tint);
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-decoration-color: var(--dsq-mark-color);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  border-radius: 2px;
+  scroll-margin-block: 96px;
+  transition: background-color 0.12s;
+}
+
+/* Ordinal as a superscript corner badge at the END of the marked text, so it
+   never sits between the reader and the sentence. Only the last fragment of a
+   multi-fragment mark carries the index, so the number appears exactly once. */
+.dsq_annMark[data-dsq-ann-index]::after {
+  content: attr(data-dsq-ann-index);
+  display: inline-grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  margin-left: 2px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--dsq-mark-color);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: super;
+}
+
+.dsq_annMark:hover {
+  background: var(--dsw-static-blue-75, #e5f0ff);
+}
+
+.dsq_annMarkFlash {
+  animation: dsq-ann-flash 1.4s ease-out;
+}
+
+@keyframes dsq-ann-flash {
+  0% {
+    background: var(--dsq-mark-color);
+    color: #fff;
+  }
+  100% {
+    background: var(--dsq-mark-tint);
+    color: inherit;
+  }
+}
+
+body[data-ds-dark-theme] .dsq_annMark {
+  --dsq-mark-tint: var(--dsw-static-blue-950, #172554);
+}
 `
 
 const TAG_ID = 'dsh-select-quote/toolbar.css'
@@ -634,6 +843,15 @@ export const styles = {
   summaryItem: 'dsq_summaryItem',
   summaryItemLabel: 'dsq_summaryItemLabel',
   summaryItemText: 'dsq_summaryItemText',
+  summaryItemBadge: 'dsq_summaryItemBadge',
+  summaryItemMain: 'dsq_summaryItemMain',
+  summaryItemHead: 'dsq_summaryItemHead',
+  summaryItemTextEmpty: 'dsq_summaryItemTextEmpty',
+  annEditText: 'dsq_annEditText',
+  annEditInput: 'dsq_annEditInput',
+  annEditActions: 'dsq_annEditActions',
+  annEditCancel: 'dsq_annEditCancel',
+  annEditSave: 'dsq_annEditSave',
   summaryHoverInner: 'dsq_summaryHoverInner',
   summaryItemButton: 'dsq_summaryItemButton',
   summaryHoverOpen: 'dsq_summaryHoverOpen',
@@ -641,6 +859,8 @@ export const styles = {
   summaryItemAction: 'dsq_summaryItemAction',
   annDirective: 'dsq_annDirective',
   annAnchor: 'dsq_annAnchor',
+  annMark: 'dsq_annMark',
+  annMarkFlash: 'dsq_annMarkFlash',
   commentPop: 'dsq_commentPop',
   commentInput: 'dsq_commentInput',
   commentActions: 'dsq_commentActions',

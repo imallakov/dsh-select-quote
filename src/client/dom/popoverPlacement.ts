@@ -19,6 +19,7 @@ export function placePopover(
   anchor: DOMRect,
   panel: { width: number; height: number },
   preferred: 'bottom' | 'top' = 'bottom',
+  gap: number = GAP,
 ): PopoverPlacement {
   const vw = window.innerWidth
   const vh = window.innerHeight
@@ -26,7 +27,7 @@ export function placePopover(
   const spaceAbove = anchor.top
 
   let side: 'bottom' | 'top' = preferred
-  const need = panel.height + GAP
+  const need = panel.height + gap
   if (preferred === 'bottom' && spaceBelow < need && spaceAbove > spaceBelow) {
     side = 'top'
   } else if (preferred === 'top' && spaceAbove < need && spaceBelow > spaceAbove) {
@@ -35,8 +36,8 @@ export function placePopover(
 
   const top =
     side === 'bottom'
-      ? Math.min(anchor.bottom + GAP, vh - panel.height - MARGIN)
-      : Math.max(anchor.top - panel.height - GAP, MARGIN)
+      ? Math.min(anchor.bottom + gap, vh - panel.height - MARGIN)
+      : Math.max(anchor.top - panel.height - gap, MARGIN)
 
   const left = Math.min(
     Math.max(anchor.left, MARGIN),

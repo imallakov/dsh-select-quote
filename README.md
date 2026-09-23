@@ -120,20 +120,38 @@ npm run check       # typecheck + build + verify（提交前跑这个）
 - 颜色一律用会随主题翻转的 `--dsw-alias-*` / `--dsw-static-*` token，只自己定义 `--dsq-card-fill` / `--dsq-card-hover` 两个填充变量；
 - 样式通过 `ensureToolbarStyles()` 注入一个 `<style data-plugin-css="dsh-select-quote/toolbar.css">`，**改完 CSS 必须刷新页面**（函数只插入一次）。
 
+**6. 正文 Mark：虚线下划线 + 末尾序号角标**
+
+划中的文本在**原消息正文**里留下 `.dsq_annMark`：高亮色**虚线**下划线（`--dsw-static-blue-500`）+ 淡蓝底 + 圆形序号徽章。徽章是上标角标，挂在划词**末尾**（多片段选区只挂在最后一个片段），不挡阅读。定位靠 `message-text.ts`：选区落在哪条消息（`[data-chat-flow-key]`）、起止字符偏移多少——偏移在"跳过插件自身装饰节点"的纯净文本上计算，mark 本身透明（不计入偏移），所以装饰前后偏移稳定。比较时忽略空白（选区文本在段落间有换行、DOM 拼接没有）。定位随 `source` 写进 wire JSON，刷新页面后由 durable 消息重新解析、重新装饰；`annotate-text.ts` 用 MutationObserver 对抗 React 重渲染（节点被换掉就重新包）。
+
+悬停摘要弹出的批注列表面板 **portal 到 `document.body`**：对话区的 `.I17U7q_follow` 带 `contain: layout`、滚动容器带 `container-type`，它们都是 `position: fixed` 的包含块，面板写在子树里会整体跑出屏幕。面板与摘要之间留 12px 透明"悬停桥"，指针离开集群有 320ms 宽限；resize / 滚动时面板重新定位而非失效。面板出现带 0.16s 缩放动画，条目序号与"选中的文本"同行，`backdrop-filter` 磨砂质感，编辑/删除用 lucide 图标。**编辑批注不另弹层**：点铅笔后该项在列表面板内原地展开编辑（完整原文 + 评论框 + 取消/高亮色保存），编辑期间面板不自动关闭。划词工具条等**拖拽结束**（pointerup）才出现，带上升淡入动画，按钮带 lucide 图标；添加批注的评论弹窗居中于选区工具条。
+
 ## 目录结构
 
 ```
 src/index.ts                       # Node 半：占位，让包被 Loader 挂载
-src/client/index.tsx               # Client 半入口：注册 Slot 与 Conversation Definition
+src/client/index.tsx               # Client 半入口：注册 Slot、Conversation Definition 与装饰观察者
 src/client/SelectionToolbar.tsx    # 划词浮动条（复制 / 添加到任务）
-src/client/selection.ts            # 选区快照、工具条定位、复制、聚焦输入框
-src/client/QuoteCard.tsx           # 输入框内引用卡片堆 + 发送动作拦截
-src/client/quote-store.ts          # 每会话引用状态、消息块拼装、U+200B 标记
-src/client/TranscriptQuoteCard.tsx # 对话记录里的引用卡片
-src/client/UserMessageDisplay.tsx  # 替换用户气泡（隐藏引用块、保留图片）
-src/client/transcript-node.ts      # select-quote Conversation Definition
-src/client/transcript-parse.ts     # 引用块解析 / 气泡文本剥离
+src/client/composer/AnnotationPanel.tsx      # 输入框内批注摘要 + 发送动作拦截
+src/client/composer/useSendIntercept.ts      # 发送手势时把待发批注折进草稿
+src/client/composer/useDraftMarker.ts        # U+200B 让"只有批注"时发送按钮可用
+src/client/dom/selection.ts        # 选区快照、工具条定位、复制、聚焦输入框
+src/client/dom/message-text.ts     # 消息纯净文本遍历、选区→字符偏移定位
+src/client/dom/annotate-text.ts    # 正文 mark（下划线+序号徽章）的注册表与装饰
+src/client/dom/scrollToAnnotation.ts # 点击批注滚动到正文 mark 并闪烁
+src/client/dom/decorateAnnotationDirectives.ts # 模型回的 :dsh-annotation{index="N"} 渲染成可点 chip
+src/client/dom/popoverPlacement.ts # 浮层定位（翻转 + 视口夹取）
+src/client/dom/composer-host.ts    # composer DOM 约定（[data-composer-card] 等）
+src/client/state/annotation-store.ts # 每会话待发批注状态
+src/client/protocol/annotation-protocol.ts # 批注 wire 格式（含 source 定位）
+src/client/protocol/quote-protocol.ts      # 旧 > 引用块协议 / U+200B 标记 / 文本工具
+src/client/transcript/TranscriptQuoteCard.tsx # 对话记录里的批注摘要
+src/client/transcript/UserMessageDisplay.tsx  # 替换用户气泡（隐藏协议块、保留图片）
+src/client/transcript/transcript-node.ts      # select-quote Conversation Definition
+src/client/ui/AnnotationCardView.tsx  # 批注卡片与悬停列表面板（portal 到 body、内联编辑）
+src/client/ui/icons.tsx               # 内联 lucide 图标（pencil / trash / x / copy / plus）
 src/client/styles.ts               # 全部 CSS（模板字符串注入）
+src/client/runtime.ts              # 跨 slot 的运行时共享（sessionId）
 src/client/context.d.ts            # 客户端 Context 服务的类型补充
 scripts/build.mjs                  # tsdown 构建 + ModuleLoader 包装
 scripts/verify-bundle.mjs          # 无头 bundle 校验

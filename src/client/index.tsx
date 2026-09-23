@@ -3,10 +3,15 @@ import { QuoteCard } from './composer/AnnotationPanel.tsx'
 import { SelectionToolbar } from './SelectionToolbar.tsx'
 import { setRuntimeSession } from './runtime.ts'
 import { watchAnnotationDirectives } from './dom/decorateAnnotationDirectives.ts'
+import {
+  syncPendingAnnotationJobs,
+  watchAnnotationMarks,
+} from './dom/annotate-text.ts'
 import { ensureToolbarStyles } from './styles.ts'
 import { TranscriptQuoteCard } from './transcript/TranscriptQuoteCard.tsx'
 import { UserMessageDisplay } from './transcript/UserMessageDisplay.tsx'
 import { registerSelectQuoteNode } from './transcript/transcript-node.ts'
+import { getAnnotations, subscribeAnnotations } from './state/annotation-store.ts'
 
 /**
  * Browser half of dsh-select-quote.
@@ -21,6 +26,13 @@ export function apply(ctx: Context): void {
   registerSelectQuoteNode(ctx)
   // Assistant replies may echo :dsh-annotation{index="N"}; decorate them as chips.
   ctx.effect(() => watchAnnotationDirectives(), 'dsh-select-quote: annotation directives')
+  // Underline + ordinal badges on annotated text; survive transcript re-renders.
+  ctx.effect(() => watchAnnotationMarks(), 'dsh-select-quote: annotation marks')
+  // Pending annotations mark their source text the moment they are added.
+  ctx.effect(() => {
+    syncPendingAnnotationJobs(getAnnotations())
+    return subscribeAnnotations(() => syncPendingAnnotationJobs(getAnnotations()))
+  }, 'dsh-select-quote: pending annotation marks')
 
   // Root: always mounted selection toolbar + comment popover.
   ctx.slots.inject('shell.overlay', () => {

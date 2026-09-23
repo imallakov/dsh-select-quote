@@ -107,7 +107,7 @@ export function AnnotationPanel({
   }, [setDraft])
 
   const onItemSelect = useCallback((index: number, item: AnnotationSummaryItem) => {
-    scrollToAnnotation(index, item.text)
+    scrollToAnnotation(index + 1, item.text, item.id)
   }, [])
 
   const onItemRemove = useCallback((_index: number, item: AnnotationSummaryItem) => {
@@ -122,12 +122,10 @@ export function AnnotationPanel({
     dropIfEmpty()
   }, [dropIfEmpty])
 
-  const onItemEdit = useCallback((_index: number, item: AnnotationSummaryItem) => {
+  const onItemEdit = useCallback((_index: number, item: AnnotationSummaryItem, comment: string) => {
     const id = item.id ?? getAnnotations().find((entry) => entry.text === item.text)?.id
     if (!id) return
-    const next = window.prompt('编辑批注评论（可留空）', item.comment ?? '')
-    if (next === null) return
-    updateAnnotationComment(undefined, id, next)
+    updateAnnotationComment(undefined, id, comment)
     sync()
   }, [sync])
 
@@ -139,6 +137,7 @@ export function AnnotationPanel({
     children: jsx(AnnotationSummary, {
       count: items.length,
       items: items.map((item) => ({
+        id: item.id,
         title: annotationTitle(item),
         text: item.text,
         comment: item.comment,
