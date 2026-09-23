@@ -576,10 +576,31 @@ body[data-ds-dark-theme] .dsq_tCard {
   --dsq-card-fill: var(--dsw-static-neutral-850, #212123);
   --dsq-card-hover: var(--dsw-static-neutral-800, #292929);
 }
+
+/* Model-written :dsh-annotation{index="N"} chips. */
+.dsq_annDirective {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  margin: 0 2px;
+  padding: 0 6px;
+  border: 0.5px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.12));
+  border-radius: 6px;
+  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.05));
+  color: var(--dsw-alias-link, #1677ff);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+  vertical-align: baseline;
+}
+
+.dsq_annDirective:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.08));
+}
 `
 
 const TAG_ID = 'dsh-select-quote/toolbar.css'
-
 export function ensureToolbarStyles(): void {
   if (typeof document === 'undefined') return
   if (document.querySelector(`style[data-plugin-css="${TAG_ID}"]`)) return
@@ -618,6 +639,7 @@ export const styles = {
   summaryHoverOpen: 'dsq_summaryHoverOpen',
   summaryItemActions: 'dsq_summaryItemActions',
   summaryItemAction: 'dsq_summaryItemAction',
+  annDirective: 'dsq_annDirective',
   annAnchor: 'dsq_annAnchor',
   commentPop: 'dsq_commentPop',
   commentInput: 'dsq_commentInput',

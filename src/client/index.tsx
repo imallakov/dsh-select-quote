@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { QuoteCard } from './composer/AnnotationPanel.tsx'
 import { SelectionToolbar } from './SelectionToolbar.tsx'
 import { setRuntimeSession } from './runtime.ts'
+import { watchAnnotationDirectives } from './dom/decorateAnnotationDirectives.ts'
 import { ensureToolbarStyles } from './styles.ts'
 import { TranscriptQuoteCard } from './transcript/TranscriptQuoteCard.tsx'
 import { UserMessageDisplay } from './transcript/UserMessageDisplay.tsx'
@@ -18,6 +19,8 @@ export const inject = ['slots', 'sessions', 'uiConversation']
 export function apply(ctx: Context): void {
   ensureToolbarStyles()
   registerSelectQuoteNode(ctx)
+  // Assistant replies may echo :dsh-annotation{index="N"}; decorate them as chips.
+  ctx.effect(() => watchAnnotationDirectives(), 'dsh-select-quote: annotation directives')
 
   // Root: always mounted selection toolbar + comment popover.
   ctx.slots.inject('shell.overlay', () => {
