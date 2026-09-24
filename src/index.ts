@@ -8,5 +8,5 @@ import type { Context } from '@deepseek-ai/cordis'
 export const name = 'dsh-select-quote'
 
 export function apply(_ctx: Context): void {
-  console.log('[dsh-select-quote] plugin loaded (client UI via conversation.input.overlay)')
+  console.log('[dsh-select-quote] plugin loaded (6 client contributions)')
 }
