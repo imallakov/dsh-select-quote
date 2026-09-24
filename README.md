@@ -1,11 +1,12 @@
 # dsh-select-quote
 
-[DeepSeek Harness](https://deepseek-harness.github.io/deepseek-harness/guide/quickstart) 的 Web 客户端插件：在对话里划词，把选中的文本作为**引用**带进下一条消息。
+[DeepSeek Harness](https://deepseek-harness.github.io/deepseek-harness/guide/quickstart) 的 Web 客户端插件：在对话里**划词加批注**——把选中的原文连同你的评论一起交给模型，并让它在回答里明确指出说的是哪一段。
 
-- **划词工具条**：选中对话区任意文本，浮出「复制 / 添加到任务」
-- **引用卡片**：添加到任务后，输入框内出现引用卡片（可多张），**草稿里不会出现 Markdown**
-- **随消息发送**：按 Enter 或点原来的发送按钮，引用块按卡片顺序折进消息，卡片消失
-- **对话记录**：同一条消息里的引用渲染为卡片，用户气泡里只剩你打的问题
+- **划词工具条**：选中对话区任意文本，浮出「复制 / 添加到任务」；拖拽结束才出现，不挡操作
+- **批注卡片**：添加后输入框内出现一张摘要卡片（可多条），**草稿里不会出现任何协议文本**
+- **正文标记**：被划中的文字在原消息里留下虚线下划线 + 序号角标；点卡片里的条目会滚回那段文字
+- **模型回指**：模型回答时以内联指令标出它处理的每一条批注，插件把这些指令渲染成可点击的 chip
+- **对话记录**：已发送消息里的批注渲染为卡片，用户气泡只剩你打的问题
 
 ![screenshot](https://raw.githubusercontent.com/latte03/dsh-select-quote/main/assets/screenshot-1.png)
 
@@ -17,167 +18,55 @@
 
 | 项 | 值 |
 |---|---|
-| dsh | `0.1.5-alpha.2`（同 minor 的 `0.1.5-alpha.x` 应该可用） |
+| dsh | `0.1.7-rc.1`（2026-09-24 实测：划词、批注卡片、正文标记、对话记录渲染全通） |
 | profile | web（`dsh web`） |
 | 运行时 | 只有浏览器半有业务；Node 半仅用于让包被 Loader 挂载 |
 
-实现依赖若干产品内部约定（见[已知限制](#已知限制)），升级 dsh 后请先跑 `npm run check` 再人工回归。
+实现依赖若干产品内部约定（槽位名、composer DOM、深色主题属性等），升级 dsh 后请先跑 `npm run check`，再照 [`docs/internals.md`](docs/internals.md) 末尾的复核清单人工回归一遍。
 
-## 快速开始
+## 安装
 
-### 方式一：本地开发加载（`--patch`）
+### 方式一：从 npm 安装（bundle）
+
+```bash
+dsh plugin --profile web add dsh-select-quote
+dsh --profile web
+```
+
+> ⚠️ npm 上目前只有 `0.1.0`，那是旧版「引用块」行为，不含批注卡片、正文标记与模型回指。要用现在这套，请先用方式二，或从仓库目录安装：`dsh plugin --profile web add <本仓库绝对路径>`。
+
+### 方式二：本地 checkout 加载（`--patch`）
 
 ```bash
 git clone <repo> && cd dsh-select-quote
-npm install
-npm run build
-
+npm install && npm run build
 dsh web --patch "$PWD/dev.patch.yml"
 ```
 
-打开 `http://127.0.0.1:3080`，在对话消息里划词即可看到工具条。
+打开 `http://127.0.0.1:3080`，在对话消息里划词即可看到工具条。`dev.patch.yml` 里的插件路径按本机写死（必须是绝对路径），换机器或换目录时改那一行；该文件不随 npm 包发布。
 
-> `dev.patch.yml` 里的插件路径必须是**绝对路径**：checkout 不在 profile 的 `node_modules` 里，Loader 没有包名可解析。仓库内该文件按本机路径写死，换机器/换目录时改这一行；该文件不随 npm 包发布。
+## 用法
 
-### 方式二：从 npm 安装（bundle）
+1. 在对话区选中一段文本 → 点「添加到任务」
+2. 弹出评论框，写一句想说的话（可留空，只划不评）→ `⌘/Ctrl + Enter` 确认
+3. 输入框上方出现批注卡片，悬停可展开列表：逐条编辑、删除，或一键清空；点条目会跳到正文里对应的那段文字
+4. 正常打字、按 Enter 发送。批注随消息一起交给模型，卡片随之消失
+5. 模型回答里指向某条批注的位置，会显示成可点的 chip
 
-```bash
-dsh plugin --profile web add dsh-select-quote   # 或本地目录的绝对路径
-dsh --profile web
-```
+## 已知限制
+
+- **待发批注只在内存里**：刷新页面或切换会话后会丢，卡片不持久化（已发送消息里的批注不受影响）。
+- **占用了用户气泡的渲染**：本插件以最低优先级替换内置 `user` 节点。若其它插件也替换同一个键（例如 `dsh-easyrewrite` 用 `-1`），会被本插件屏蔽。
+- **卡片宽度有限**：输入框内每条摘要最宽约为输入框的 1/4，超长标题走省略号。
+- 划词只在对话区生效，不介入编辑器、终端等面板。
 
 ## 开发
 
 ```bash
-npm run typecheck   # tsc --noEmit，应无输出
-npm run build       # 产出 lib/index.js 与 lib/client.js
-npm run watch       # 增量重建
-npm run verify      # 无头执行 lib/client.js，断言 5 项贡献都注册上了
-npm run check       # typecheck + build + verify（提交前跑这个）
+npm run check   # typecheck + build + verify，提交前跑这个
 ```
 
-**为什么有 `verify`**：`tsdown` 不做类型检查，一个语法坏掉的 bundle 也能构建"成功"。最典型的一次事故是 CSS 模板字符串里出现了反引号（`` `.nyYjTG_file` ``），字符串被提前截断，产出的 JS 无法执行，但 build 输出一切正常。`verify` 把 `lib/client.js` 放进假的 `window.__ModuleLoader__` 里跑一遍，用 mock ctx 调 `apply()`，逐项核对注册结果——这是唯一能在浏览器之外发现这类错误的手段。改动 `src/client/index.tsx` 的注册项时，记得同步 `scripts/verify-bundle.mjs` 里的 `EXPECTED`。
-
-## 工作原理
-
-### 数据契约：消息里的引用块
-
-引用在消息里就是一段带标记的 Markdown 引用块，正文在最前面：
-
-```
-> [选中文本]
-> 用户选中的第一段
-
-> [选中文本]
-> 用户选中的第二段
-
-用户自己输入的问题
-```
-
-`> [选中文本]` 这个标记是插件的识别依据：客户端据此把这段从用户气泡里剥掉、改渲染成卡片。**改动这个标记要同时改三处**：`formatQuoteBlock()`（写）、`parseQuoteMessage()`（读）、`displayTextWithoutQuote()`（剥离）。
-
-### 客户端贡献
-
-| 位置 | 类型 | 说明 |
-|---|---|---|
-| `conversation.input.overlay` | list slot | `select-quote-toolbar`（划词工具条）、`select-quote-card`（引用卡片堆） |
-| `conversation.chat.node` | keyed slot | `select-quote`（引用卡片）、`user`（替换用户气泡） |
-| Conversation Definition | `uiConversation.events.register` | `select-quote`：把带引用的 `user/message` 变成一个 Chat 节点 |
-
-### 关键机制
-
-**1. 引用不进草稿，只在发送瞬间注入**
-
-卡片不是草稿的"可视化"，而是唯一的表示。草稿保持用户真正输入的内容，引用块在**发送动作的捕获阶段**才折进去：`document` 上的 `keydown`（无修饰键的 Enter、非 IME 组字）或 `click`（composer 内 DOM 顺序上的最后一个 `button`，且不是停止按钮——停止按钮渲染的是 `svg rect`）。捕获阶段早于 composer 自己的处理器，因此它读到的草稿已经包含引用块。见 `src/client/QuoteCard.tsx`。
-
-**2. 不可见字符 U+200B 让发送按钮保持可用**
-
-草稿为空时 composer 会把发送按钮置灰（`empty = draft.trim() === "" && attachments.length === 0`），而 U+200B 不是 JS 的 WhiteSpace，`trim()` 不会去掉它，于是"只有引用、没打字"也能直接发送。它只在**新增/移除引用卡片**时写入或清除一次，发送前由 `stripDraftMarker()` 剔除，绝不进消息。
-
-> 这条规则有个坑：**永远不要因为草稿变化就重写编辑器**。`inputActions.setDraft()` 的实现是 `root.clear()` + 逐行重建 + 光标移到末尾。早期版本在 `useEffect` 里依赖 `draft`，一旦发现标记缺失就补——用户按 Backspace 删到标记时会被立刻补回（表现为"删除失效"），输入法组字期间甚至会把正在组字的编辑器内容整段清掉（表现为"打完中文按 Backspace 没反应"）。
-
-**3. 输入框卡片布局**
-
-`conversation.input.overlay` 的锚点是 `height: 0; position: absolute`，卡片本身也是绝对定位，因此**不会挤开下面的编辑器**，默认会盖住附件栏。做法是给 `[data-composer-card]` 加一个 `.dsq_cardPad` 类，用 `ResizeObserver` 实测卡片堆高度写进 `--dsq-quote-pad`：
-
-```css
-.dsq_cardPad { padding-top: var(--dsq-quote-pad, 88px) !important; }
-```
-
-绝对定位子元素相对**padding box** 定位，所以卡片仍在顶部，而附件栏与编辑器一起被推到它下方——这也顺带修掉了"传图时图片被卡片盖住"。
-
-**4. 对话记录：Definition + 节点 + 气泡替换**
-
-- Definition（`transcript-node.ts`）匹配 `type === "user/message"` 且文本含引用块的消息，产出一个 `select-quote` 节点；
-- `TranscriptQuoteCard.tsx` 渲染该节点（每段引用一张卡片，纵向堆叠、与气泡同侧）；
-- `UserMessageDisplay.tsx` 以 `priority: -10` 替换内置的 `user` 节点，把引用块从气泡里剥掉，**同时自己渲染消息携带的图片**——只引用、没有正文的消息，气泡文本为空，若不接管图片渲染，整条消息（含图片）会消失。
-
-**5. 样式与主题**
-
-卡片几何对齐产品自带的文件卡片（`ui-deliverables` 的 `.nyYjTG_file`）：`.5px` 发丝边框、18px 圆角、64px 固定高、10px 内边距、hover 背景过渡；删除按钮绝对定位右上角，仅 hover / 键盘聚焦时淡入。
-
-- 深色模式用产品自己的 `body[data-ds-dark-theme]`（由 `dsh-client-ui-layout` 挂在 body 上），**不是** `prefers-color-scheme`；
-- 颜色一律用会随主题翻转的 `--dsw-alias-*` / `--dsw-static-*` token，只自己定义 `--dsq-card-fill` / `--dsq-card-hover` 两个填充变量；
-- 样式通过 `ensureToolbarStyles()` 注入一个 `<style data-plugin-css="dsh-select-quote/toolbar.css">`，**改完 CSS 必须刷新页面**（函数只插入一次）。
-
-**6. 正文 Mark：虚线下划线 + 末尾序号角标**
-
-划中的文本在**原消息正文**里留下 `.dsq_annMark`：高亮色**虚线**下划线（`--dsw-static-blue-500`）+ 淡蓝底 + 圆形序号徽章。徽章是上标角标，挂在划词**末尾**（多片段选区只挂在最后一个片段），不挡阅读。定位靠 `message-text.ts`：选区落在哪条消息（`[data-chat-flow-key]`）、起止字符偏移多少——偏移在"跳过插件自身装饰节点"的纯净文本上计算，mark 本身透明（不计入偏移），所以装饰前后偏移稳定。比较时忽略空白（选区文本在段落间有换行、DOM 拼接没有）。定位随 `source` 写进 wire JSON，刷新页面后由 durable 消息重新解析、重新装饰；`annotate-text.ts` 用 MutationObserver 对抗 React 重渲染（节点被换掉就重新包）。
-
-悬停摘要弹出的批注列表面板 **portal 到 `document.body`**：对话区的 `.I17U7q_follow` 带 `contain: layout`、滚动容器带 `container-type`，它们都是 `position: fixed` 的包含块，面板写在子树里会整体跑出屏幕。面板与摘要之间留 12px 透明"悬停桥"，指针离开集群有 320ms 宽限；resize / 滚动时面板重新定位而非失效。面板出现带 0.16s 缩放动画，条目序号与"选中的文本"同行，`backdrop-filter` 磨砂质感，编辑/删除用 lucide 图标。**编辑批注不另弹层**：点铅笔后该项在列表面板内原地展开编辑（完整原文 + 评论框 + 取消/高亮色保存），编辑期间面板不自动关闭。划词工具条等**拖拽结束**（pointerup）才出现，带上升淡入动画，按钮带 lucide 图标；添加批注的评论弹窗居中于选区工具条。
-
-## 目录结构
-
-```
-src/index.ts                       # Node 半：占位，让包被 Loader 挂载
-src/client/index.tsx               # Client 半入口：注册 Slot、Conversation Definition 与装饰观察者
-src/client/SelectionToolbar.tsx    # 划词浮动条（复制 / 添加到任务）
-src/client/composer/AnnotationPanel.tsx      # 输入框内批注摘要 + 发送动作拦截
-src/client/composer/useSendIntercept.ts      # 发送手势时把待发批注折进草稿
-src/client/composer/useDraftMarker.ts        # U+200B 让"只有批注"时发送按钮可用
-src/client/dom/selection.ts        # 选区快照、工具条定位、复制、聚焦输入框
-src/client/dom/message-text.ts     # 消息纯净文本遍历、选区→字符偏移定位
-src/client/dom/annotate-text.ts    # 正文 mark（下划线+序号徽章）的注册表与装饰
-src/client/dom/scrollToAnnotation.ts # 点击批注滚动到正文 mark 并闪烁
-src/client/dom/decorateAnnotationDirectives.ts # 模型回的 :dsh-annotation{index="N"} 渲染成可点 chip
-src/client/dom/popoverPlacement.ts # 浮层定位（翻转 + 视口夹取）
-src/client/dom/composer-host.ts    # composer DOM 约定（[data-composer-card] 等）
-src/client/state/annotation-store.ts # 每会话待发批注状态
-src/client/protocol/annotation-protocol.ts # 批注 wire 格式（含 source 定位）
-src/client/protocol/quote-protocol.ts      # 旧 > 引用块协议 / U+200B 标记 / 文本工具
-src/client/transcript/TranscriptQuoteCard.tsx # 对话记录里的批注摘要
-src/client/transcript/UserMessageDisplay.tsx  # 替换用户气泡（隐藏协议块、保留图片）
-src/client/transcript/transcript-node.ts      # select-quote Conversation Definition
-src/client/ui/AnnotationCardView.tsx  # 批注卡片与悬停列表面板（portal 到 body、内联编辑）
-src/client/ui/icons.tsx               # 内联 lucide 图标（pencil / trash / x / copy / plus）
-src/client/styles.ts               # 全部 CSS（模板字符串注入）
-src/client/runtime.ts              # 跨 slot 的运行时共享（sessionId）
-src/client/context.d.ts            # 客户端 Context 服务的类型补充
-scripts/build.mjs                  # tsdown 构建 + ModuleLoader 包装
-scripts/verify-bundle.mjs          # 无头 bundle 校验
-cordis.patch.yml                   # bundle 加载层（按包名，随 npm 包发布）
-dev.patch.yml                      # 本地 --patch 开发层（绝对路径，不发布）
-lib/                               # 构建产物（已提交，运行时直接读它）
-```
-
-## 已知限制
-
-- **引用状态在内存里**：刷新页面或换会话后待发引用会丢，卡片不会持久化。
-- **输入框卡片最宽为输入框的 1/4**（`max-width: calc(25% - 5px)`），超长标题走省略号；同一行可放 4 张，多了换行。正因为窄，输入框内的图标是 36px，而对话记录里是 40px。
-- **替换了 `user` 节点**（`priority: -10`，最低优先级胜出）。若其它插件也替换同一个键（例如 `dsh-easyrewrite` 用 `-1`），本插件会把对方屏蔽掉。
-- **只注入一个会话一份待发引用**，按 `sessionId` 在内存 Map 里存。
-- 依赖的产品内部约定：`[data-composer-card]` 属性、主发送按钮是卡片内 DOM 顺序上最后一个 `button`、停止按钮渲染 `svg rect`、`user/message` 事件的内容在 `data.content`（不是 `data.message.content`）、深色属性 `data-ds-dark-theme`。产品升级后这些都需要复核。
-
-## 排错
-
-| 现象 | 先查 |
-|---|---|
-| 划词没有工具条 / 卡片不出现 | 跑 `npm run check`；确认页面已刷新；Host 的 boot 图里应包含 `dsh-select-quote`（`/plugins` 路由由 `ctx.clientModules` 提供） |
-| 输入框里出现 `> [选中文本]` 原文 | 说明发送前的注入没生效：确认草稿里存在 U+200B（发送按钮应是可用的），以及 composer 结构未变（`[data-composer-card]`） |
-| 对话记录里没有卡片 | 该 `user/message` 事件的 `data.content` 是否含引用块；`conversation.chat.node` 的 `select-quote` 单元是否被注册 |
-| 带图片的消息在记录里只剩卡片、图片没了 | `UserMessageDisplay` 是否拿到了 `renderMessageImages` |
-| 改了 CSS 不生效 | `<style>` 只注入一次，刷新页面 |
-| 按 Backspace 删不掉 / 中文输入被打断 | 检查是否有代码在响应草稿变化时调用 `setDraft()`（见[关键机制 2](#关键机制)） |
+改 CSS 后要刷新页面（样式只注入一次）。协议格式、槽位注册、以及几处非显而易见的坑（U+200B 草稿标记、portal 到 body 的浮层、`--dsq-quote-pad` 高度补偿）记录在 **[docs/internals.md](docs/internals.md)**。
 
 ## License
 
