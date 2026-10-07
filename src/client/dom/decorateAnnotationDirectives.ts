@@ -5,6 +5,7 @@
 
 import { ANNOTATION_DIRECTIVE_RE } from '../protocol/annotation-protocol.ts'
 import { findAnnotationMarkBefore, flashAnnotationMark } from './annotate-text.ts'
+import { t } from '../i18n.ts'
 
 const DECO = 'dsq-ann-directive'
 
@@ -33,7 +34,7 @@ function decorateTextNode(node: Text): void {
     chip.className = 'dsq_annDirective'
     chip.dataset[DECO] = String(index)
     chip.setAttribute('data-dsq-deco', 'true')
-    chip.textContent = `批注 ${index}`
+    chip.textContent = t('chip.annotation', { index })
     chip.addEventListener('click', () => {
       // The annotation lives in the user turn that precedes this reply.
       const mark = findAnnotationMarkBefore(index, chip)

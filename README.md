@@ -53,6 +53,27 @@ dsh web --patch "$PWD/dev.patch.yml"
 4. 正常打字、按 Enter 发送。批注随消息一起交给模型，卡片随之消失
 5. 模型回答里指向某条批注的位置，会显示成可点的 chip
 
+## 语言 / Localization
+
+界面文案支持 **简体中文 / English / Русский**，默认跟随浏览器语言：
+
+| 语言 | 默认值 |
+|---|---|
+| `zh` | 原文案，同时作为缺失键的兜底词典 |
+| `en` | 非中文环境 |
+| `ru` | `ru` / `ru-RU` 等标签 |
+
+想固定语言，在 Web GUI 控制台里设置后刷新页面：
+
+```js
+localStorage.setItem('dsq-locale', 'ru') // 'ru' | 'en' | 'zh'
+localStorage.removeItem('dsq-locale')    // 恢复跟随浏览器
+```
+
+**刻意不翻译的部分**：`> [选中文本]`、`<response-annotations>`、`:dsh-annotation{index="N"}` 这些是模型与解析器约定的传输格式；`# Response annotations:` 那段是给模型的指令正文，不是界面文案。只有面向人的 chrome 走 `t()`。
+
+新增文案：在 `src/client/i18n.ts` 的三份词典里各加一条，再在组件里 `t('key', { ... })` 调用。带 `{count}` 的键可以写成复数形式对象（中文用 `other`，俄语用 `one` / `few` / `many`）。
+
 ## 已知限制
 
 - **待发批注只在内存里**：刷新页面或切换会话后会丢，卡片不持久化（已发送消息里的批注不受影响）。
