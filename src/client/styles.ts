@@ -596,10 +596,12 @@ const CSS = `
   align-items: stretch;
   gap: 6px;
   margin: 4px 0 8px;
-  /* Match composer summary width; sit on the user-bubble side (right). */
-  width: 20%;
-  min-width: 148px;
-  max-width: 220px;
+  /* Each card carries the selected text plus the user's comment, so the stack
+     needs more room than the composer's one-line summary. It still sits on the
+     user-bubble side (right). */
+  width: 32%;
+  min-width: 190px;
+  max-width: 320px;
   margin-left: auto;
   margin-right: 0;
 }
@@ -674,6 +676,67 @@ const CSS = `
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Transcript card wrapper: the card itself is a click target that scrolls back
+   to the marked text. Unlike the composer summary (one collapsed row per
+   message) each history card shows its own comment, so the fixed 64px height
+   and the single-line clamps are lifted here. */
+.dsq_tCardButton {
+  appearance: none;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 18px;
+}
+
+.dsq_tCardButton:focus-visible {
+  outline: 2px solid var(--dsw-static-blue-500, #3b82f6);
+  outline-offset: 2px;
+}
+
+.dsq_tCardButton .dsq_tCard {
+  height: auto;
+  min-height: 64px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.dsq_tCardButton .dsq_tCardIcon {
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.dsq_tCardButton .dsq_tCardTitle {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.dsq_tCardButton .dsq_tCardSubtitle {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-top: 2px;
+}
+
+/* A comment is the user's own words — give it more presence than the neutral
+   "no comment" placeholder. */
+.dsq_tCardButton .dsq_tCardSubtitle[data-dsq-has-comment='true'] {
+  color: var(--dsw-alias-label-secondary, rgba(0, 0, 0, 0.65));
 }
 
 /* Replacement user bubble (quote block stripped from display). */
@@ -865,6 +928,7 @@ export const styles = {
   commentInput: 'dsq_commentInput',
   commentActions: 'dsq_commentActions',
   tCardStack: 'dsq_tCardStack',
+  tCardButton: 'dsq_tCardButton',
   tCard: 'dsq_tCard',
   tCardIcon: 'dsq_tCardIcon',
   tCardBody: 'dsq_tCardBody',

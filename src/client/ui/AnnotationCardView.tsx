@@ -34,7 +34,17 @@ export function AnnotationCardView({
   onEditComment,
 }: AnnotationCardViewProps): ReactNode {
   const composer = variant === 'composer'
-  const subtitle = comment ? t('card.commentSubtitle', { comment }) : t('common.selectedText')
+  // Composer cards summarise a pending selection, so the comment gets a label
+  // ("Comment · …"). Transcript cards already show the selected text as the
+  // card title, so the line below it is the comment itself — no label needed.
+  // Their no-comment state says so instead of repeating the title.
+  const subtitle = comment
+    ? composer
+      ? t('card.commentSubtitle', { comment })
+      : comment
+    : composer
+      ? t('common.selectedText')
+      : t('summary.noComment')
   return jsxs('div', {
     className: composer ? styles.card : styles.tCard,
     role: 'group',
@@ -55,6 +65,10 @@ export function AnnotationCardView({
           }),
           jsx('div', {
             className: composer ? styles.cardSubtitle : styles.tCardSubtitle,
+            // Transcript cards clamp the comment; keep the full text reachable
+            // as a native tooltip, and let CSS tell a real comment apart from
+            // the "no comment" placeholder.
+            ...(comment ? { title: comment, 'data-dsq-has-comment': 'true' } : {}),
             children: subtitle,
           }),
         ],

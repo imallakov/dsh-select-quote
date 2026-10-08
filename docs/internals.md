@@ -75,7 +75,7 @@ Each item contains text selected from an earlier message ...
 **4. 对话记录：Definition + 节点 + 气泡替换**
 
 - Definition（`transcript-node.ts`）匹配 `type === "user/message"` 且文本含批注块的消息，产出一个 `select-quote` 节点；
-- `TranscriptQuoteCard.tsx` 渲染该节点（每段批注一张卡片，纵向堆叠、与气泡同侧）；
+- `TranscriptQuoteCard.tsx` 渲染该节点：**每段批注一张 `AnnotationCardView`（`variant: 'transcript'`）**，纵向堆叠、与气泡同侧。卡片上直接显示**选中文本 + 用户评论**，点卡片滚回正文对应 mark——评论是用户认出自己那条批注的唯一凭据，不能只藏在悬停面板里（曾经用过 `AnnotationSummary`，折叠态只显示「N 条批注」，评论必须悬停才看得到）；
 - `UserMessageDisplay.tsx` 以 `priority: -10` 替换内置的 `user` 节点，把协议块从气泡里剥掉，**同时自己渲染消息携带的图片**——只批注、没有正文的消息气泡文本为空，若不接管图片渲染，整条消息（含图片）会消失。
 
 **5. 正文 Mark：虚线下划线 + 末尾序号角标**

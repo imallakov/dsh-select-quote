@@ -32,6 +32,9 @@ export interface SelectionToolbarProps {
 
 type Phase = 'idle' | 'comment'
 
+/** Cap for the auto-growing comment box; beyond this it scrolls internally. */
+const COMMENT_MAX_HEIGHT = 220
+
 export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNode {
   const toolbarRef = useRef<HTMLDivElement | null>(null)
   const commentWrapRef = useRef<HTMLDivElement | null>(null)
@@ -118,12 +121,28 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
       schedule()
     }
 
+    // Scroll inside our own popover must not count as a page scroll: a long
+    // comment scrolls its textarea, and closing here would throw away what the
+    // user just typed. The capture listener fires for descendants too, so the
+    // origin has to be checked instead of relying on bubbling.
+    const onScroll = (event: Event) => {
+      const target = event.target
+      if (
+        target instanceof Node &&
+        (toolbarRef.current?.contains(target) === true ||
+          commentWrapRef.current?.contains(target) === true)
+      ) {
+        return
+      }
+      hide()
+    }
+
     document.addEventListener('pointerdown', onPointerDown, true)
     document.addEventListener('pointerup', onPointerUp, true)
     document.addEventListener('keyup', schedule, true)
     document.addEventListener('selectionchange', onSelectionChange)
     window.addEventListener('resize', hide)
-    document.addEventListener('scroll', hide, true)
+    document.addEventListener('scroll', onScroll, true)
 
     return () => {
       document.removeEventListener('pointerdown', onPointerDown, true)
@@ -131,7 +150,7 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
       document.removeEventListener('keyup', schedule, true)
       document.removeEventListener('selectionchange', onSelectionChange)
       window.removeEventListener('resize', hide)
-      document.removeEventListener('scroll', hide, true)
+      document.removeEventListener('scroll', onScroll, true)
     }
   }, [hide, refresh])
 
@@ -162,6 +181,19 @@ export function SelectionToolbar({ sessionId }: SelectionToolbarProps): ReactNod
       commentRef.current?.focus()
     }
   }, [phase, placeCommentPop])
+
+  // Grow the comment box with its content (up to a cap) instead of letting it
+  // scroll internally: a fixed 64px box starts scrolling after a few wrapped
+  // lines, which reads as a character limit. Re-place the popover afterwards so
+  // a taller box still flips and clamps correctly.
+  useEffect(() => {
+    if (phase !== 'comment') return
+    const area = commentRef.current
+    if (!area) return
+    area.style.height = 'auto'
+    area.style.height = `${Math.min(area.scrollHeight, COMMENT_MAX_HEIGHT)}px`
+    placeCommentPop()
+  }, [phase, comment, placeCommentPop])
 
   const handleToolbarPointerDown = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     event.preventDefault()
