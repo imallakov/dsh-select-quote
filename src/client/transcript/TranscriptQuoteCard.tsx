@@ -3,8 +3,14 @@ import { jsx } from 'react/jsx-runtime'
 import { upsertAnnotationJobs } from '../dom/annotate-text.ts'
 import { scrollToAnnotation } from '../dom/scrollToAnnotation.ts'
 import { ensureToolbarStyles, styles } from '../styles.ts'
+import type { ParsedAnnotation } from '../protocol/annotation-protocol.ts'
 import { AnnotationCardView } from '../ui/AnnotationCardView.tsx'
-import type { SelectQuoteNodeData } from './transcript-node.ts'
+
+/** View payload a user message's cards are rendered from. */
+export interface SelectQuoteNodeData {
+  readonly quotes: readonly ParsedAnnotation[]
+  readonly seq: number
+}
 
 export interface TranscriptQuoteCardProps {
   node: { data: SelectQuoteNodeData }

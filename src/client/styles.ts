@@ -589,19 +589,19 @@ const CSS = `
   gap: 6px;
 }
 
-/* Transcript cards — in-flow Chat node (conversation history), stacked. */
+/* Transcript cards — in-flow rows under the user bubble, side by side. */
 .dsq_tCardStack {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: stretch;
   gap: 6px;
   margin: 4px 0 8px;
-  /* Each card carries the selected text plus the user's comment, so the stack
-     needs more room than the composer's one-line summary. It still sits on the
-     user-bubble side (right). */
-  width: 32%;
-  min-width: 190px;
-  max-width: 320px;
+  /* Cards lay out horizontally and wrap onto the next row when they run out of
+     width. Each card carries the selected text plus the user's comment, so they
+     stay compact and stay on the user-bubble side (right). */
+  max-width: 100%;
   margin-left: auto;
   margin-right: 0;
 }
@@ -685,14 +685,17 @@ const CSS = `
 .dsq_tCardButton {
   appearance: none;
   display: block;
-  width: 100%;
+  /* Compact cards: several fit in one row before wrapping. */
+  flex: 0 1 auto;
+  width: 230px;
+  max-width: 100%;
   padding: 0;
   border: none;
   background: transparent;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  border-radius: 18px;
+  border-radius: 14px;
 }
 
 .dsq_tCardButton:focus-visible {
@@ -702,35 +705,42 @@ const CSS = `
 
 .dsq_tCardButton .dsq_tCard {
   height: auto;
-  min-height: 64px;
+  min-height: 0;
   align-items: flex-start;
   width: 100%;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 14px;
 }
 
 .dsq_tCardButton .dsq_tCardIcon {
-  width: 26px;
-  height: 26px;
-  border-radius: 9px;
-  font-size: 12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  font-size: 11px;
 }
 
 .dsq_tCardButton .dsq_tCardTitle {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   white-space: normal;
   overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .dsq_tCardButton .dsq_tCardSubtitle {
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   margin-top: 2px;
+  font-size: 12px;
+  line-height: 16px;
 }
 
 /* A comment is the user's own words — give it more presence than the neutral
